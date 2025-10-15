@@ -13,6 +13,7 @@ import { etpSections, trSections } from './config/sections';
 import { etpTemplates, trTemplates } from './config/templates';
 
 declare const mammoth: any;
+declare const tinymce: any;
 
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
     const binaryString = window.atob(base64);
@@ -227,6 +228,7 @@ const App: React.FC = () => {
   const [editingContent, setEditingContent] = useState<{ docType: DocumentType; sectionId: string; title: string; text: string } | null>(null);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
+  const editorInstanceRef = useRef<any>(null);
 
   // Inline rename state
   const [editingDoc, setEditingDoc] = useState<{ type: DocumentType; id: number; name: string; priority: Priority; } | null>(null);
@@ -411,6 +413,49 @@ const App: React.FC = () => {
         setPreviewContent(null); 
     }
   }, [viewingAttachment]);
+
+  // Effect to manage TinyMCE editor lifecycle
+  useEffect(() => {
+    if (isEditModalOpen && editingContent) {
+        if (typeof tinymce === 'undefined') {
+            console.error("O TinyMCE não está carregado.");
+            return;
+        }
+
+        tinymce.init({
+            selector: '#rich-text-editor-modal',
+            height: 400,
+            menubar: 'file edit view insert format tools table help',
+            plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table help wordcount',
+            toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+            content_style: 'body { font-family:Inter,sans-serif; font-size:14px }',
+            setup: (editor) => {
+                editorInstanceRef.current = editor;
+                editor.on('init', () => {
+                    editor.setContent(editingContent.text || '');
+                });
+                editor.on('change', () => {
+                    const content = editor.getContent();
+                    setEditingContent(prev => (prev && prev.text !== content) ? { ...prev, text: content } : prev);
+                });
+            },
+        });
+    }
+
+    return () => {
+        if (typeof tinymce !== 'undefined' && tinymce.get('rich-text-editor-modal')) {
+            tinymce.remove('#rich-text-editor-modal');
+            editorInstanceRef.current = null;
+        }
+    };
+  }, [isEditModalOpen]);
+
+  // Effect to handle editor readonly state while refining
+  useEffect(() => {
+      if (editorInstanceRef.current && editorInstanceRef.current.mode) {
+        editorInstanceRef.current.mode.set(isRefining ? 'readonly' : 'design');
+      }
+  }, [isRefining]);
 
   // --- Handlers ---
   const handleLogin = (success: boolean) => {
@@ -866,7 +911,11 @@ Solicitação do usuário: "${refinePrompt}"
     try {
       const refinedText = await callGemini(prompt);
       if (refinedText && !refinedText.startsWith("Erro:")) {
-        setEditingContent({ ...editingContent, text: refinedText });
+        if (editorInstanceRef.current) {
+            editorInstanceRef.current.setContent(refinedText);
+        } else {
+            setEditingContent({ ...editingContent, text: refinedText });
+        }
       } else {
         setMessage({ title: "Erro de Refinamento", text: refinedText });
       }
@@ -1830,16 +1879,11 @@ Solicitação do usuário: "${refinePrompt}"
           {renderPreviewContent()}
       </Modal>
       
-      <Modal isOpen={isEditModalOpen} onClose={closeEditModal} title={`Editar: ${editingContent?.title}`} maxWidth="max-w-3xl">
+      <Modal isOpen={isEditModalOpen} onClose={closeEditModal} title={`Editar: ${editingContent?.title}`} maxWidth="max-w-4xl">
         {editingContent && (
           <div>
-            <textarea
-              value={editingContent.text}
-              onChange={(e) => setEditingContent({ ...editingContent, text: e.target.value })}
-              className="w-full h-64 p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors mb-4"
-              disabled={isRefining}
-            />
-            <div className="bg-slate-100 p-4 rounded-lg mb-4">
+            <textarea id="rich-text-editor-modal" />
+            <div className="bg-slate-100 p-4 rounded-lg my-4">
               <label htmlFor="refine-prompt" className="block text-sm font-semibold text-slate-600 mb-2">Peça à IA para refinar o texto acima:</label>
               <div className="flex gap-2">
                 <input
@@ -1858,7 +1902,7 @@ Solicitação do usuário: "${refinePrompt}"
                 >
                   <Icon name="wand-magic-sparkles" className="md:mr-2" />
                   <span className="hidden md:inline">
-                    {isRefining ? 'A refinar...' : 'Assim mas...'}
+                    {isRefining ? 'A refinar...' : 'Refinar com IA'}
                   </span>
                 </button>
               </div>
