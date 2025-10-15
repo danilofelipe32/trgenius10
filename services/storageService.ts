@@ -18,10 +18,12 @@ const saveDocuments = (key: string, docs: SavedDocument[]): void => {
   const updatedDocs = docs.map(newDoc => {
     const oldDoc = oldDocsMap.get(newDoc.id);
 
+    // Case 1: Brand new document
     if (!oldDoc) {
-      // It's a brand new document
       return {
         ...newDoc,
+        createdAt: newDoc.createdAt || timestamp,
+        updatedAt: timestamp,
         history: [{
           timestamp: timestamp,
           summary: 'Documento criado.',
@@ -31,55 +33,48 @@ const saveDocuments = (key: string, docs: SavedDocument[]): void => {
       };
     }
 
-    // It's an existing document, check for changes
-    const changes: string[] = [];
-    if (newDoc.name !== oldDoc.name) {
-      changes.push(`nome alterado de "${oldDoc.name}" para "${newDoc.name}"`);
-    }
-    if (newDoc.priority !== oldDoc.priority) {
-      changes.push(`prioridade alterada de "${oldDoc.priority || 'nenhuma'}" para "${newDoc.priority}"`);
-    }
-    if (JSON.stringify(newDoc.sections) !== JSON.stringify(oldDoc.sections)) {
-      changes.push('conteúdo das seções modificado');
-    }
-    if (JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || [])) {
-      changes.push('anexos atualizados');
-    }
+    // Case 2: Existing document. Check for changes.
+    const hasChanged = JSON.stringify(newDoc.sections) !== JSON.stringify(oldDoc.sections) ||
+                         JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || []) ||
+                         newDoc.name !== oldDoc.name ||
+                         newDoc.priority !== oldDoc.priority;
 
-    if (changes.length > 0) {
-      const summary = `Alteração: ${changes.join(', ')}.`;
-      
-      // Create a snapshot of the *old* state before updating
+    if (hasChanged) {
+      const changes: string[] = [];
+      if (newDoc.name !== oldDoc.name) {
+        changes.push('nome alterado');
+      }
+      if (newDoc.priority !== oldDoc.priority) {
+        changes.push('prioridade alterada');
+      }
+      if (JSON.stringify(newDoc.sections) !== JSON.stringify(oldDoc.sections)) {
+        changes.push('conteúdo das seções modificado');
+      }
+      if (JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || [])) {
+        changes.push('anexos atualizados');
+      }
+
+      const summary = changes.length > 0 ? `Alteração: ${changes.join(', ')}.` : 'Modificações gerais.';
+
       const newHistoryEntry: DocumentVersion = {
-        timestamp: oldDoc.history?.[0]?.timestamp || oldDoc.createdAt, // Use timestamp of the previous version
-        summary: oldDoc.history?.[0]?.summary || 'Versão inicial.',
-        sections: oldDoc.sections,
-        attachments: oldDoc.attachments,
+        timestamp: timestamp,
+        summary: summary,
+        sections: newDoc.sections,
+        attachments: newDoc.attachments
       };
+      
+      const newHistory = [newHistoryEntry, ...(oldDoc.history || [])];
 
-      const existingHistory = oldDoc.history || [];
-      
-      // The new history will contain the latest change summary first
-      const updatedHistory = [{
-          timestamp: timestamp,
-          summary: summary,
-          sections: newDoc.sections,
-          attachments: newDoc.attachments
-        }, 
-        ...existingHistory
-      ];
-      
       return {
         ...newDoc,
         updatedAt: timestamp,
-        history: updatedHistory
+        history: newHistory
       };
     }
 
-    // No changes detected, just return the doc as is
+    // No changes detected, return the old document to preserve its exact state and history
     return oldDoc;
   });
-
 
   localStorage.setItem(key, JSON.stringify(updatedDocs));
 };
