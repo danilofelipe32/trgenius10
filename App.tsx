@@ -463,7 +463,7 @@ const App: React.FC = () => {
 
     if(docType === 'etp') {
       const demandaText = currentSections['etp-input-demanda'] || '';
-      if(!demandaText) {
+      if(sectionId !== 'etp-input-demanda' && !demandaText.trim()) {
         setMessage({ title: 'Aviso', text: "Por favor, preencha a seção '2. Demanda' primeiro, pois ela serve de base para as outras." });
         setValidationErrors(new Set(['etp-input-demanda']));
         setLoadingSection(null);
@@ -480,6 +480,13 @@ const App: React.FC = () => {
     } else { // TR
       if (!loadedEtpForTr) {
         setMessage({ title: 'Aviso', text: 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.' });
+        setLoadingSection(null);
+        return;
+      }
+      const objetoText = currentSections['tr-input-objeto'] || '';
+      if(sectionId !== 'tr-input-objeto' && !objetoText.trim()) {
+        setMessage({ title: 'Aviso', text: "Por favor, preencha a seção '1. Objeto da Contratação' primeiro, pois ela serve de base para as outras." });
+        setValidationErrors(new Set(['tr-input-objeto']));
         setLoadingSection(null);
         return;
       }
