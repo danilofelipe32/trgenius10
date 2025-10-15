@@ -127,7 +127,7 @@ const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChan
         value={value || ''}
         onChange={(e) => onChange(id, e.target.value)}
         placeholder={isLoading ? 'A IA está a gerar o conteúdo...' : placeholder}
-        className={`w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 focus:border-blue-500 transition-colors ${hasError ? 'border-red-500 ring-red-200' : 'border-slate-200 focus:ring-blue-500'}`}
+        className={`w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors ${hasError ? 'border-red-500 ring-red-200' : 'border-slate-200 focus:ring-blue-500'} ${isLoading ? 'loading-animation' : ''}`}
         disabled={isLoading}
       />
     </div>
