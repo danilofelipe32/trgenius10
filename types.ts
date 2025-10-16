@@ -67,3 +67,10 @@ export interface PreviewContext {
   type: DocumentType | null;
   id: number | null;
 }
+
+export interface Notification {
+  id: number;
+  title: string;
+  text: string;
+  type: 'success' | 'error' | 'info';
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, Attachment, DocumentVersion, Priority, Template } from './types';
+import { Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, Attachment, DocumentVersion, Priority, Template, Notification as NotificationType } from './types';
 import * as storage from './services/storageService';
 import { callGemini } from './services/geminiService';
 import { processSingleUploadedFile, chunkText } from './services/ragService';
@@ -13,6 +13,83 @@ import { etpSections, trSections } from './config/sections';
 import { etpTemplates, trTemplates } from './config/templates';
 
 declare const mammoth: any;
+
+// --- Notification Component ---
+interface NotificationProps {
+  notification: NotificationType;
+  onClose: (id: number) => void;
+}
+
+const Notification: React.FC<NotificationProps> = ({ notification, onClose }) => {
+  const { id, title, text, type } = notification;
+  const [isExiting, setIsExiting] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => onClose(id), 300); // Wait for animation to finish
+  }, [id, onClose]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleClose();
+    }, 5000); // Auto-close after 5 seconds
+
+    return () => clearTimeout(timer);
+  }, [id, handleClose]);
+
+  const typeClasses = useMemo(() => ({
+    success: {
+      bg: 'bg-green-50',
+      border: 'border-green-400',
+      iconColor: 'text-green-500',
+      iconName: 'check-circle',
+    },
+    error: {
+      bg: 'bg-red-50',
+      border: 'border-red-400',
+      iconColor: 'text-red-500',
+      iconName: 'exclamation-triangle',
+    },
+    info: {
+      bg: 'bg-blue-50',
+      border: 'border-blue-400',
+      iconColor: 'text-blue-500',
+      iconName: 'info-circle',
+    },
+  }), []);
+
+  const classes = typeClasses[type];
+
+  return (
+    <div
+      className={`relative w-full max-w-sm p-4 mb-4 rounded-lg shadow-xl border-l-4 overflow-hidden
+        ${classes.bg} ${classes.border} ${isExiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    >
+      <div className="flex items-start">
+        <div className="flex-shrink-0 pt-0.5">
+          <Icon name={classes.iconName} className={`text-xl ${classes.iconColor}`} />
+        </div>
+        <div className="ml-3 flex-1">
+          <p className="text-sm font-bold text-slate-800">{title}</p>
+          <p className="mt-1 text-sm text-slate-600 break-words">{text}</p>
+        </div>
+        <div className="ml-4 flex-shrink-0 flex">
+          <button
+            onClick={handleClose}
+            className="inline-flex text-slate-400 hover:text-slate-600 transition-colors p-1 -mr-1 -mt-1 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+            aria-label="Fechar"
+          >
+            <Icon name="times" className="text-lg" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
     const binaryString = window.atob(base64);
@@ -231,7 +308,7 @@ const App: React.FC = () => {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewContext, setPreviewContext] = useState<PreviewContext>({ type: null, id: null });
-  const [message, setMessage] = useState<{ title: string; text: string } | null>(null);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [analysisContent, setAnalysisContent] = useState<{ title: string; content: string | null }>({ title: '', content: null });
   const [loadingSection, setLoadingSection] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set());
@@ -288,6 +365,21 @@ const App: React.FC = () => {
     { key: 'low', label: 'Baixa', activeClasses: 'bg-green-500 text-white shadow-sm', inactiveClasses: 'text-green-700 hover:bg-green-100' },
   ];
 
+
+  // --- Handlers ---
+  const removeNotification = useCallback((id: number) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const addNotification = useCallback((title: string, text: string, type: 'success' | 'error' | 'info') => {
+      const newNotification = {
+        id: Date.now(),
+        title,
+        text,
+        type,
+      };
+      setNotifications(prev => [...prev, newNotification]);
+  }, []);
 
   // --- Effects ---
   useEffect(() => {
@@ -492,7 +584,7 @@ const App: React.FC = () => {
     if(docType === 'etp') {
       const demandaText = currentSections['etp-input-demanda'] || '';
       if(sectionId !== 'etp-input-demanda' && !demandaText.trim()) {
-        setMessage({ title: 'Aviso', text: "Por favor, preencha a seção '2. Demanda' primeiro, pois ela serve de base para as outras." });
+        addNotification('Atenção', "Por favor, preencha a seção '2. Demanda' primeiro, pois ela serve de base para as outras.", 'info');
         setValidationErrors(new Set(['etp-input-demanda']));
         setLoadingSection(null);
         return;
@@ -507,13 +599,13 @@ const App: React.FC = () => {
       prompt = `Você é um especialista em planeamento de contratações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Estudo Técnico Preliminar (ETP).\n\nUse o seguinte contexto do formulário como base:\n${context}\n${ragContext}\n\nGere um texto detalhado e tecnicamente correto para a seção "${title}", utilizando a Lei 14.133/21 como referência principal e incorporando as informações do formulário e dos documentos de apoio.`;
     } else { // TR
       if (!loadedEtpForTr) {
-        setMessage({ title: 'Aviso', text: 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.' });
+        addNotification('Atenção', 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.', 'info');
         setLoadingSection(null);
         return;
       }
       const objetoText = currentSections['tr-input-objeto'] || '';
       if(sectionId !== 'tr-input-objeto' && !objetoText.trim()) {
-        setMessage({ title: 'Aviso', text: "Por favor, preencha a seção '1. Objeto da Contratação' primeiro, pois ela serve de base para as outras." });
+        addNotification('Atenção', "Por favor, preencha a seção '1. Objeto da Contratação' primeiro, pois ela serve de base para as outras.", 'info');
         setValidationErrors(new Set(['tr-input-objeto']));
         setLoadingSection(null);
         return;
@@ -535,10 +627,10 @@ const App: React.FC = () => {
       if (generatedText && !generatedText.startsWith("Erro:")) {
         handleSectionChange(docType, sectionId, generatedText);
       } else {
-        setMessage({ title: 'Erro de Geração', text: generatedText });
+        addNotification('Erro de Geração', generatedText, 'error');
       }
     } catch (error: any) {
-      setMessage({ title: 'Erro Inesperado', text: `Falha ao gerar texto: ${error.message}` });
+      addNotification('Erro Inesperado', `Falha ao gerar texto: ${error.message}`, 'error');
     } finally {
         setLoadingSection(null);
     }
@@ -652,10 +744,11 @@ ${content}
     
     const validationMessages = validateForm(docType, sections);
     if (validationMessages.length > 0) {
-        setMessage({
-            title: "Campos Obrigatórios",
-            text: `Por favor, preencha os seguintes campos antes de salvar:\n- ${validationMessages.join('\n- ')}`
-        });
+        addNotification(
+            "Campos Obrigatórios",
+            `Por favor, preencha os seguintes campos antes de salvar:\n- ${validationMessages.join('\n- ')}`,
+            'error'
+        );
         return;
     }
 
@@ -676,7 +769,7 @@ ${content}
       const updatedETPs = [...savedETPs, newDoc];
       setSavedETPs(updatedETPs);
       storage.saveETPs(updatedETPs);
-      setMessage({ title: "Sucesso", text: `ETP "${name}" guardado com sucesso!` });
+      addNotification("Sucesso", `ETP "${name}" guardado com sucesso!`, 'success');
     } else {
       const newDoc: SavedDocument = {
         id: Date.now(),
@@ -691,7 +784,7 @@ ${content}
       const updatedTRs = [...savedTRs, newDoc];
       setSavedTRs(updatedTRs);
       storage.saveTRs(updatedTRs);
-      setMessage({ title: "Sucesso", text: `TR "${name}" guardado com sucesso!` });
+      addNotification("Sucesso", `TR "${name}" guardado com sucesso!`, 'success');
     }
   };
   
@@ -708,7 +801,7 @@ ${content}
         setTrAttachments(docToLoad.attachments || []);
         storage.saveFormState('trFormState', docToLoad.sections);
       }
-      setMessage({ title: 'Documento Carregado', text: `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.` });
+      addNotification('Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`, 'success');
       setActiveView(docType);
       if (window.innerWidth < 768) setIsSidebarOpen(false);
     }
@@ -724,6 +817,7 @@ ${content}
       setSavedTRs(updated);
       storage.saveTRs(updated);
     }
+    addNotification('Sucesso', `O documento foi apagado.`, 'success');
   };
 
   const handleStartEditing = (type: DocumentType, doc: SavedDocument) => {
@@ -808,6 +902,7 @@ ${content}
       const updatedFiles = [...uploadedFiles, ...successfullyProcessed];
       setUploadedFiles(updatedFiles);
       storage.saveStoredFiles(updatedFiles);
+      addNotification('Sucesso', `${successfullyProcessed.length} ficheiro(s) carregado(s).`, 'success');
     }
 
     setTimeout(() => {
@@ -833,7 +928,7 @@ ${content}
 
   const handlePreviewRagFile = (file: UploadedFile) => {
     if (!file.content || !file.type) {
-      setMessage({ title: 'Pré-visualização Indisponível', text: 'Este ficheiro foi carregado numa versão anterior e não tem conteúdo para pré-visualização. Por favor, remova-o e carregue-o novamente.' });
+      addNotification('Pré-visualização Indisponível', 'Este ficheiro foi carregado numa versão anterior e não tem conteúdo para pré-visualização. Por favor, remova-o e carregue-o novamente.', 'info');
       return;
     }
     const attachmentToPreview: Attachment = {
@@ -863,7 +958,7 @@ ${content}
 
   const handleImportEtpAttachments = () => {
     if (!loadedEtpForTr) {
-      setMessage({ title: 'Aviso', text: 'Nenhum ETP carregado para importar anexos.' });
+      addNotification('Aviso', 'Nenhum ETP carregado para importar anexos.', 'info');
       return;
     }
     const etp = savedETPs.find(e => e.id === loadedEtpForTr.id);
@@ -873,12 +968,12 @@ ${content}
       );
       if (newAttachments.length > 0) {
         setTrAttachments(prev => [...prev, ...newAttachments]);
-        setMessage({ title: 'Sucesso', text: `${newAttachments.length} anexo(s) importado(s) do ETP "${etp.name}".` });
+        addNotification('Sucesso', `${newAttachments.length} anexo(s) importado(s) do ETP "${etp.name}".`, 'success');
       } else {
-        setMessage({ title: 'Informação', text: 'Todos os anexos do ETP já constam neste TR.' });
+        addNotification('Informação', 'Todos os anexos do ETP já constam neste TR.', 'info');
       }
     } else {
-      setMessage({ title: 'Aviso', text: `O ETP "${loadedEtpForTr.name}" não possui anexos para importar.` });
+      addNotification('Aviso', `O ETP "${loadedEtpForTr.name}" não possui anexos para importar.`, 'info');
     }
   };
 
@@ -887,7 +982,7 @@ ${content}
     const sectionContent = currentSections[sectionId];
 
     if (!sectionContent || String(sectionContent || '').trim() === '') {
-        setMessage({ title: 'Aviso', text: `Por favor, preencha ou gere o conteúdo da seção "${title}" antes de realizar a análise de riscos.` });
+        addNotification('Aviso', `Por favor, preencha ou gere o conteúdo da seção "${title}" antes de realizar a análise de riscos.`, 'info');
         return;
     }
 
@@ -998,10 +1093,10 @@ Solicitação do usuário: "${refinePrompt}"
       if (refinedText && !refinedText.startsWith("Erro:")) {
         setEditingContent({ ...editingContent, text: refinedText });
       } else {
-        setMessage({ title: "Erro de Refinamento", text: refinedText });
+        addNotification("Erro de Refinamento", refinedText, 'error');
       }
     } catch (error: any) {
-      setMessage({ title: 'Erro Inesperado', text: `Falha ao refinar o texto: ${error.message}` });
+      addNotification('Erro Inesperado', `Falha ao refinar o texto: ${error.message}`, 'error');
     } finally {
       setIsRefining(false);
     }
@@ -1015,10 +1110,11 @@ Solicitação do usuário: "${refinePrompt}"
     const docToExport = docs.find(d => d.id === id);
 
     if (docToExport) {
+        // FIX: Define `allSections` based on the document type before using it.
         const allSections = type === 'etp' ? etpSections : trSections;
         exportDocumentToPDF(docToExport, allSections);
     } else {
-        setMessage({ title: 'Erro', text: 'Não foi possível encontrar o documento para exportar.' });
+        addNotification('Erro', 'Não foi possível encontrar o documento para exportar.', 'error');
     }
   };
   
@@ -1035,8 +1131,8 @@ Solicitação do usuário: "${refinePrompt}"
         if (etpSelector) etpSelector.value = "";
         storage.saveFormState('trFormState', {});
     }
-    setMessage({ title: 'Formulário Limpo', text: `O formulário do ${docType.toUpperCase()} foi limpo.` });
-  }, []);
+    addNotification('Formulário Limpo', `O formulário do ${docType.toUpperCase()} foi limpo.`, 'info');
+  }, [addNotification]);
 
   const getAttachmentDataUrl = (attachment: Attachment) => {
     return `data:${attachment.type};base64,${attachment.content}`;
@@ -1050,7 +1146,7 @@ Solicitação do usuário: "${refinePrompt}"
       const doc = docs.find(d => d.id === id);
 
       if (!doc) {
-        setMessage({ title: 'Erro', text: 'Documento não encontrado para gerar o resumo.' });
+        addNotification('Erro', 'Documento não encontrado para gerar o resumo.', 'error');
         return;
       }
 
@@ -1268,11 +1364,12 @@ Solicitação do usuário: "${refinePrompt}"
     setIsNewDocModalOpen(false);
     switchView(docType);
     handleClearForm(docType)();
-    setMessage({
-        title: 'Novo Documento',
-        text: `Um novo formulário para ${docType.toUpperCase()} foi iniciado.`
-    });
-  }, [switchView, handleClearForm]);
+    addNotification(
+        'Novo Documento',
+        `Um novo formulário para ${docType.toUpperCase()} foi iniciado.`,
+        'info'
+    );
+  }, [switchView, handleClearForm, addNotification]);
 
   const handleCreateFromTemplate = useCallback((template: Template) => {
       setIsNewDocModalOpen(false);
@@ -1289,11 +1386,12 @@ Solicitação do usuário: "${refinePrompt}"
           if (etpSelector) etpSelector.value = "";
           storage.saveFormState('trFormState', template.sections);
       }
-      setMessage({
-          title: 'Template Carregado',
-          text: `Um novo documento foi iniciado usando o template "${template.name}".`
-      });
-  }, [switchView]);
+      addNotification(
+          'Template Carregado',
+          `Um novo documento foi iniciado usando o template "${template.name}".`,
+          'success'
+      );
+  }, [switchView, addNotification]);
 
   const displayDocumentHistory = (doc: SavedDocument) => {
     setHistoryModalContent(doc);
@@ -1337,10 +1435,10 @@ Solicitação do usuário: "${refinePrompt}"
         // Fallback: Copy to clipboard
         try {
             await navigator.clipboard.writeText(shareData.url);
-            setMessage({ title: "Link Copiado", text: "O link da aplicação foi copiado para a sua área de transferência!" });
+            addNotification("Link Copiado", "O link da aplicação foi copiado para a sua área de transferência!", 'success');
         } catch (error) {
             console.error('Erro ao copiar o link:', error);
-            setMessage({ title: "Erro", text: "Não foi possível copiar o link. Por favor, copie manualmente: https://trgenius.netlify.app/" });
+            addNotification("Erro", "Não foi possível copiar o link. Por favor, copie manualmente: https://trgenius.netlify.app/", 'error');
         }
     }
   };
@@ -1786,7 +1884,7 @@ Solicitação do usuário: "${refinePrompt}"
                                 attachments={etpAttachments}
                                 onAttachmentsChange={setEtpAttachments}
                                 onPreview={setViewingAttachment}
-                                setMessage={setMessage}
+                                addNotification={addNotification}
                             />
                         </div>
                     );
@@ -1876,7 +1974,7 @@ Solicitação do usuário: "${refinePrompt}"
                                 attachments={trAttachments}
                                 onAttachmentsChange={setTrAttachments}
                                 onPreview={setViewingAttachment}
-                                setMessage={setMessage}
+                                addNotification={addNotification}
                             />
                         </div>
                     );
@@ -1939,13 +2037,6 @@ Solicitação do usuário: "${refinePrompt}"
                 </ul>
               <p>Esta ferramenta foi projetada para otimizar o seu tempo, aumentar a qualidade dos seus documentos e garantir a segurança jurídica das suas contratações.</p>
           </div>
-      </Modal>
-
-      <Modal isOpen={!!message} onClose={() => setMessage(null)} title={message?.title || ''}>
-        <p className="whitespace-pre-wrap">{message?.text}</p>
-        <div className="flex justify-end mt-4">
-            <button onClick={() => setMessage(null)} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">OK</button>
-        </div>
       </Modal>
 
       <Modal 
@@ -2199,6 +2290,17 @@ Solicitação do usuário: "${refinePrompt}"
             onDismiss={handleDismissInstallBanner}
         />
     )}
+
+    {/* Notifications Container */}
+    <div className="fixed top-5 right-5 z-[100] w-full max-w-sm">
+        {notifications.map((notification) => (
+          <Notification
+            key={notification.id}
+            notification={notification}
+            onClose={removeNotification}
+          />
+        ))}
+    </div>
     </div>
   );
 };
