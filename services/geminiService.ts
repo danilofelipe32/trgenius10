@@ -23,7 +23,21 @@ export async function callGemini(prompt: string, useWebSearch: boolean = false):
       const sources = (groundingChunks as any[])
         .map((chunk) => chunk.web)
         .filter((web): web is { uri: string; title?: string } => !!web && !!web.uri)
-        .map((web) => ({ title: web.title || web.uri, uri: web.uri }));
+        .map((web) => {
+          let displayTitle = web.title;
+          // If no title is provided, create a cleaner one from the URI itself.
+          if (!displayTitle) {
+            try {
+              const url = new URL(web.uri);
+              // Combine hostname (without www) and pathname for a concise but descriptive title.
+              displayTitle = url.hostname.replace(/^www\./, '') + (url.pathname.length > 1 ? url.pathname : '');
+            } catch (e) {
+              // Fallback to the original URI if it's not a valid URL for parsing.
+              displayTitle = web.uri;
+            }
+          }
+          return { title: displayTitle, uri: web.uri };
+        });
       
       const uniqueSources = Array.from(new Map(sources.map(item => [item.uri, item])).values());
 

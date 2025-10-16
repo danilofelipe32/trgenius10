@@ -91,6 +91,44 @@ const Notification: React.FC<NotificationProps> = ({ notification, onClose }) =>
 };
 
 
+// --- Content Renderer with Clickable Links ---
+const ContentRenderer: React.FC<{ text: string | null; className?: string }> = ({ text, className }) => {
+    if (!text) return null;
+
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    // Regex to find Markdown links like [text](url) OR standalone http(s) URLs
+    const regex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\bhttps?:\/\/[^\s()<>]+[^\s.,'"`?!;:]*[^\s.,'"`?!;:)])/g;
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        // Add the text before the match
+        if (match.index > lastIndex) {
+            nodes.push(text.substring(lastIndex, match.index));
+        }
+        
+        const [fullMatch, markdownBlock, markdownText, markdownUrl, standaloneUrl] = match;
+
+        if (markdownBlock) {
+            // It's a [text](url)
+            nodes.push(<a href={markdownUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{markdownText}</a>);
+        } else if (standaloneUrl) {
+            // It's a standalone URL
+            nodes.push(<a href={standaloneUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{standaloneUrl}</a>);
+        }
+        
+        lastIndex = regex.lastIndex;
+    }
+
+    // Add the remaining text after the last match
+    if (lastIndex < text.length) {
+        nodes.push(text.substring(lastIndex));
+    }
+
+    return <div className={`whitespace-pre-wrap font-sans text-sm text-slate-700 break-words ${className || ''}`}>{nodes.map((node, i) => <React.Fragment key={i}>{node}</React.Fragment>)}</div>;
+};
+
+
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
     const binaryString = window.atob(base64);
     const len = binaryString.length;
@@ -1242,7 +1280,7 @@ Solicitação do usuário: "${refinePrompt}"
                             <span>A IA está a processar o seu pedido...</span>
                         </div>
                     ) : (
-                        <p className="text-purple-900 whitespace-pre-wrap">{summaryState.content}</p>
+                        <ContentRenderer text={summaryState.content} className="text-purple-900" />
                     )}
                 </div>
             )}
@@ -2109,7 +2147,7 @@ Solicitação do usuário: "${refinePrompt}"
 
       <Modal isOpen={!!analysisContent.content} onClose={() => setAnalysisContent({title: '', content: null})} title={analysisContent.title} maxWidth="max-w-3xl">
           <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
-            <pre className="whitespace-pre-wrap word-wrap font-sans text-sm text-slate-700">{analysisContent.content}</pre>
+            <ContentRenderer text={analysisContent.content} />
           </div>
       </Modal>
 
@@ -2126,7 +2164,7 @@ Solicitação do usuário: "${refinePrompt}"
           </div>
         ) : (
           <div className="p-4 bg-slate-50 rounded-lg max-h-[60vh] overflow-y-auto">
-              <pre className="whitespace-pre-wrap word-wrap font-sans text-sm text-slate-700">{complianceCheckResult}</pre>
+              <ContentRenderer text={complianceCheckResult} />
           </div>
         )}
         <div className="flex justify-end mt-4">
