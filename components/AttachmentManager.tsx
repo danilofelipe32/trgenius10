@@ -35,6 +35,15 @@ const getFileIcon = (mimeType: string): string => {
   return 'file-alt';
 };
 
+const handleDownload = (attachment: Attachment) => {
+    const link = document.createElement('a');
+    link.href = `data:${attachment.type};base64,${attachment.content}`;
+    link.download = attachment.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 const TOTAL_SIZE_LIMIT_MB = 50;
 const TOTAL_SIZE_LIMIT_BYTES = TOTAL_SIZE_LIMIT_MB * 1024 * 1024;
 
@@ -136,15 +145,6 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
 
   const handleRemove = (indexToRemove: number) => {
     onAttachmentsChange(attachments.filter((_, index) => index !== indexToRemove));
-  };
-
-  const handleDownload = (attachment: Attachment) => {
-    const link = document.createElement('a');
-    link.href = `data:${attachment.type};base64,${attachment.content}`;
-    link.download = attachment.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handleBrowseClick = () => {
