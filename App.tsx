@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -436,7 +436,7 @@ const App: React.FC = () => {
   const [editingDoc, setEditingDoc] = useState<{ type: DocumentType; id: number; name: string; priority: Priority; } | null>(null);
 
   // Auto-save state
-  const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Salvo');
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>('Salvo com sucesso');
   const debounceTimeoutRef = useRef<number | null>(null);
   const etpContentRef = useRef(etpSectionsContent);
   const trContentRef = useRef(trSectionsContent);
@@ -574,7 +574,7 @@ const App: React.FC = () => {
           setAutoSaveStatus('Salvando...');
           storage.saveFormState('etpFormState', etpSectionsContent);
           storage.saveFormState('trFormState', trSectionsContent);
-          setTimeout(() => setAutoSaveStatus('Salvo ✓'), 500);
+          setTimeout(() => setAutoSaveStatus('Salvo com sucesso'), 500);
       }, 2000); // 2 seconds after user stops typing
 
       return () => {
@@ -589,7 +589,7 @@ const App: React.FC = () => {
           // Use refs to get the latest state, avoiding stale closures
           storage.saveFormState('etpFormState', etpContentRef.current);
           storage.saveFormState('trFormState', trContentRef.current);
-          setTimeout(() => setAutoSaveStatus('Salvo ✓'), 500);
+          setTimeout(() => setAutoSaveStatus('Salvo com sucesso'), 500);
       }, 30000);
 
       return () => clearInterval(interval);
