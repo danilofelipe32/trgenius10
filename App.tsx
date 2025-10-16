@@ -1322,14 +1322,36 @@ Solicitação do usuário: "${refinePrompt}"
     }
   };
 
+  const priorityFilteredDocs = useMemo(() => {
+    const filterByPriority = (docs: SavedDocument[]) => {
+      if (priorityFilter === 'all') {
+        return docs;
+      }
+      return docs.filter(doc => doc.priority === priorityFilter);
+    };
+    return {
+      etps: filterByPriority(savedETPs),
+      trs: filterByPriority(savedTRs),
+    };
+  }, [savedETPs, savedTRs, priorityFilter]);
+
+  const searchedDocs = useMemo(() => {
+    const filterBySearch = (docs: SavedDocument[]) => {
+      if (!searchTerm) {
+        return docs;
+      }
+      const lowercasedSearchTerm = searchTerm.toLowerCase();
+      return docs.filter(doc => doc.name.toLowerCase().includes(lowercasedSearchTerm));
+    };
+    return {
+      etps: filterBySearch(priorityFilteredDocs.etps),
+      trs: filterBySearch(priorityFilteredDocs.trs),
+    };
+  }, [priorityFilteredDocs, searchTerm]);
+
   const { displayedETPs, displayedTRs } = useMemo(() => {
-    const processDocuments = (docs: SavedDocument[]) => {
-      const filtered = docs.filter(doc =>
-        (priorityFilter === 'all' || doc.priority === priorityFilter) &&
-        doc.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      
-      const sorted = [...filtered].sort((a, b) => {
+    const sortDocs = (docs: SavedDocument[]) => {
+      return [...docs].sort((a, b) => {
         if (sortOrder === 'name') {
           return a.name.localeCompare(b.name);
         }
@@ -1338,15 +1360,13 @@ Solicitação do usuário: "${refinePrompt}"
         const dateB = new Date(b.updatedAt).getTime();
         return dateB - dateA;
       });
-      
-      return sorted;
     };
     
     return {
-      displayedETPs: processDocuments(savedETPs),
-      displayedTRs: processDocuments(savedTRs)
+      displayedETPs: sortDocs(searchedDocs.etps),
+      displayedTRs: sortDocs(searchedDocs.trs)
     };
-  }, [savedETPs, savedTRs, priorityFilter, searchTerm, sortOrder]);
+  }, [searchedDocs, sortOrder]);
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
