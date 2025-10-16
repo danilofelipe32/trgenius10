@@ -44,6 +44,25 @@ const priorityLabels: Record<Priority, string> = {
   low: 'Baixa',
 };
 
+const etpTemplateColors = [
+  "bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-800",
+  "bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-800",
+  "bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-800",
+  "bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-800",
+  "bg-cyan-50 hover:bg-cyan-100 border-cyan-200 text-cyan-800",
+  "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800",
+];
+
+const trTemplateColors = [
+  "bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-800",
+  "bg-fuchsia-50 hover:bg-fuchsia-100 border-fuchsia-200 text-fuchsia-800",
+  "bg-pink-50 hover:bg-pink-100 border-pink-200 text-pink-800",
+  "bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-800",
+  "bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800",
+  "bg-red-50 hover:bg-red-100 border-red-200 text-red-800",
+];
+
+
 // --- Reusable Section Component ---
 interface SectionProps {
   id: string;
@@ -1990,96 +2009,73 @@ Solicitação do usuário: "${refinePrompt}"
       <div className="space-y-4">
         <p className="text-slate-600 mb-6">Comece com um template pré-definido para agilizar o seu trabalho ou crie um documento em branco.</p>
         
-        {(() => {
-          const etpTemplateColors = [
-            "bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-800",
-            "bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-800",
-            "bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-800",
-            "bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-800",
-            "bg-cyan-50 hover:bg-cyan-100 border-cyan-200 text-cyan-800",
-            "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800",
-          ];
-          const trTemplateColors = [
-            "bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-800",
-            "bg-fuchsia-50 hover:bg-fuchsia-100 border-fuchsia-200 text-fuchsia-800",
-            "bg-pink-50 hover:bg-pink-100 border-pink-200 text-pink-800",
-            "bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-800",
-            "bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800",
-            "bg-red-50 hover:bg-red-100 border-red-200 text-red-800",
-          ];
+        {/* ETP Templates */}
+        <div className="mb-8">
+            <h3 className="text-lg font-bold text-blue-800 mb-3 border-b-2 border-blue-200 pb-2">Estudo Técnico Preliminar (ETP)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <button 
+                    onClick={() => handleCreateNewDocument('etp')}
+                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
+                >
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <Icon name="file" className="text-slate-500 text-xl" />
+                            <p className="font-bold text-slate-700">Documento em Branco</p>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um ETP do zero.</p>
+                    </div>
+                </button>
+                {etpTemplates.map((template, index) => (
+                    <button 
+                        key={template.id}
+                        onClick={() => handleCreateFromTemplate(template)}
+                        className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${etpTemplateColors[index % etpTemplateColors.length]}`}
+                    >
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <Icon name="file-alt" className="text-current text-xl opacity-70" />
+                                <p className="font-bold">{template.name}</p>
+                            </div>
+                            <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
 
-          return (
-            <>
-              {/* ETP Templates */}
-              <div className="mb-8">
-                  <h3 className="text-lg font-bold text-blue-800 mb-3 border-b-2 border-blue-200 pb-2">Estudo Técnico Preliminar (ETP)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <button 
-                          onClick={() => handleCreateNewDocument('etp')}
-                          className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                      >
-                          <div>
-                              <div className="flex items-center gap-3">
-                                  <Icon name="file" className="text-slate-500 text-xl" />
-                                  <p className="font-bold text-slate-700">Documento em Branco</p>
-                              </div>
-                              <p className="text-sm text-slate-500 mt-2 pl-8">Comece um ETP do zero.</p>
-                          </div>
-                      </button>
-                      {etpTemplates.map((template, index) => (
-                          <button 
-                              key={template.id}
-                              onClick={() => handleCreateFromTemplate(template)}
-                              className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${etpTemplateColors[index % etpTemplateColors.length]}`}
-                          >
-                              <div>
-                                  <div className="flex items-center gap-3">
-                                      <Icon name="file-alt" className="text-current text-xl opacity-70" />
-                                      <p className="font-bold">{template.name}</p>
-                                  </div>
-                                  <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
-                              </div>
-                          </button>
-                      ))}
-                  </div>
-              </div>
-
-              {/* TR Templates */}
-              <div>
-                  <h3 className="text-lg font-bold text-purple-800 mb-3 border-b-2 border-purple-200 pb-2">Termo de Referência (TR)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <button 
-                          onClick={() => handleCreateNewDocument('tr')}
-                          className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                      >
-                          <div>
-                              <div className="flex items-center gap-3">
-                                  <Icon name="file" className="text-slate-500 text-xl" />
-                                  <p className="font-bold text-slate-700">Documento em Branco</p>
-                              </div>
-                              <p className="text-sm text-slate-500 mt-2 pl-8">Comece um TR do zero.</p>
-                          </div>
-                      </button>
-                      {trTemplates.map((template, index) => (
-                          <button 
-                              key={template.id}
-                              onClick={() => handleCreateFromTemplate(template)}
-                              className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${trTemplateColors[index % trTemplateColors.length]}`}
-                          >
-                              <div>
-                                  <div className="flex items-center gap-3">
-                                      <Icon name="gavel" className="text-current text-xl opacity-70" />
-                                      <p className="font-bold">{template.name}</p>
-                                  </div>
-                                  <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
-                              </div>
-                          </button>
-                      ))}
-                  </div>
-              </div>
-            </>
-          );
-        })()}
+        {/* TR Templates */}
+        <div>
+            <h3 className="text-lg font-bold text-purple-800 mb-3 border-b-2 border-purple-200 pb-2">Termo de Referência (TR)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <button 
+                    onClick={() => handleCreateNewDocument('tr')}
+                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
+                >
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <Icon name="file" className="text-slate-500 text-xl" />
+                            <p className="font-bold text-slate-700">Documento em Branco</p>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um TR do zero.</p>
+                    </div>
+                </button>
+                {trTemplates.map((template, index) => (
+                    <button 
+                        key={template.id}
+                        onClick={() => handleCreateFromTemplate(template)}
+                        className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${trTemplateColors[index % trTemplateColors.length]}`}
+                    >
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <Icon name="gavel" className="text-current text-xl opacity-70" />
+                                <p className="font-bold">{template.name}</p>
+                            </div>
+                            <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
       </div>
     </Modal>
     
