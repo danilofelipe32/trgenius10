@@ -91,41 +91,105 @@ const Notification: React.FC<NotificationProps> = ({ notification, onClose }) =>
 };
 
 
-// --- Content Renderer with Clickable Links ---
+// --- Content Renderer with Professional Formatting ---
 const ContentRenderer: React.FC<{ text: string | null; className?: string }> = ({ text, className }) => {
     if (!text) return null;
 
-    const nodes: React.ReactNode[] = [];
-    let lastIndex = 0;
-    // Regex to find Markdown links like [text](url) OR standalone http(s) URLs
-    const regex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\bhttps?:\/\/[^\s()<>]+[^\s.,'"`?!;:]*[^\s.,'"`?!;:)])/g;
+    const parseInline = (line: string): React.ReactNode => {
+        const nodes: React.ReactNode[] = [];
+        let lastIndex = 0;
+        // Regex for Markdown links, standalone URLs, and bold text
+        const regex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\bhttps?:\/\/[^\s()<>]+[^\s.,'"`?!;:]*[^\s.,'"`?!;:)])|(\*\*(.*?)\*\*)/g;
 
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-        // Add the text before the match
-        if (match.index > lastIndex) {
-            nodes.push(text.substring(lastIndex, match.index));
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+            // Add text before the match
+            if (match.index > lastIndex) {
+                nodes.push(line.substring(lastIndex, match.index));
+            }
+            
+            const [_fullMatch, markdownBlock, markdownText, markdownUrl, standaloneUrl, boldBlock, boldText] = match;
+
+            if (markdownBlock) {
+                nodes.push(<a href={markdownUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{markdownText}</a>);
+            } else if (standaloneUrl) {
+                nodes.push(<a href={standaloneUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{standaloneUrl}</a>);
+            } else if (boldBlock) {
+                nodes.push(<strong key={lastIndex} className="font-semibold text-slate-800">{boldText}</strong>);
+            }
+            
+            lastIndex = regex.lastIndex;
+        }
+
+        // Add remaining text
+        if (lastIndex < line.length) {
+            nodes.push(line.substring(lastIndex));
+        }
+
+        return nodes.map((node, i) => <React.Fragment key={i}>{node}</React.Fragment>);
+    };
+
+    const elements: React.ReactNode[] = [];
+    const lines = text.split('\n');
+    let listItems: string[] = [];
+    let listType: 'ul' | 'ol' | null = null;
+    
+    const flushList = () => {
+        if (listItems.length > 0 && listType) {
+            const listKey = `list-${elements.length}`;
+            const items = listItems.map((item, i) => <li key={`${listKey}-${i}`} className="pb-1">{parseInline(item)}</li>);
+            if (listType === 'ul') {
+                elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
+            } else {
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+            }
+        }
+        listItems = [];
+        listType = null;
+    };
+
+    lines.forEach((line, index) => {
+        if (line.startsWith('### ')) { flushList(); elements.push(<h3 key={index} className="text-base font-bold text-slate-700 mt-4 mb-1">{parseInline(line.substring(4))}</h3>); return; }
+        if (line.startsWith('## ')) { flushList(); elements.push(<h2 key={index} className="text-lg font-bold text-slate-800 mt-5 mb-2 pb-1 border-b border-slate-200">{parseInline(line.substring(3))}</h2>); return; }
+        if (line.startsWith('# ')) { flushList(); elements.push(<h1 key={index} className="text-xl font-extrabold text-slate-900 mt-2 mb-3 pb-2 border-b border-slate-300">{parseInline(line.substring(2))}</h1>); return; }
+        if (line.trim() === '---') { flushList(); elements.push(<hr key={index} className="my-4 border-slate-200" />); return; }
+        
+        const ulMatch = line.match(/^\s*[\*-]\s+(.*)/);
+        if (ulMatch) {
+            if (listType !== 'ul') flushList();
+            listType = 'ul';
+            listItems.push(ulMatch[1]);
+            return;
+        }
+
+        const olMatch = line.match(/^\s*\d+\.\s+(.*)/);
+        if (olMatch) {
+            if (listType !== 'ol') flushList();
+            listType = 'ol';
+            listItems.push(olMatch[1]);
+            return;
         }
         
-        const [fullMatch, markdownBlock, markdownText, markdownUrl, standaloneUrl] = match;
-
-        if (markdownBlock) {
-            // It's a [text](url)
-            nodes.push(<a href={markdownUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{markdownText}</a>);
-        } else if (standaloneUrl) {
-            // It's a standalone URL
-            nodes.push(<a href={standaloneUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{standaloneUrl}</a>);
-        }
+        flushList();
         
-        lastIndex = regex.lastIndex;
-    }
+        if (line.trim() !== '') {
+            elements.push(<p key={index} className="leading-relaxed my-2 text-slate-700">{parseInline(line)}</p>);
+        }
+    });
+    
+    flushList();
 
-    // Add the remaining text after the last match
-    if (lastIndex < text.length) {
-        nodes.push(text.substring(lastIndex));
-    }
-
-    return <div className={`whitespace-pre-wrap font-sans text-sm text-slate-700 break-words ${className || ''}`}>{nodes.map((node, i) => <React.Fragment key={i}>{node}</React.Fragment>)}</div>;
+    return (
+      <div className={`relative p-5 rounded-lg border bg-white shadow-sm ${className || ''}`}>
+        <div className="absolute -top-2 -left-2 bg-pink-100 text-pink-700 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+          <Icon name="brain" className="text-sm" />
+          <span>TR GENIUS</span>
+        </div>
+        <div className="pt-4">
+          {elements}
+        </div>
+      </div>
+    );
 };
 
 
@@ -1272,15 +1336,15 @@ Solicitação do usuário: "${refinePrompt}"
                </button>
             </div>
              {(summaryState.loading || summaryState.content) && (
-                <div className="mt-6 p-4 bg-purple-50 border-l-4 border-purple-400 rounded-r-lg">
-                    <h3 className="font-bold text-purple-800 text-lg mb-2">Resumo Executivo</h3>
+                <div className="mt-6">
+                    <h3 className="font-bold text-slate-800 text-lg mb-2">Resumo Executivo</h3>
                     {summaryState.loading ? (
-                        <div className="flex items-center gap-2 text-purple-700">
+                        <div className="flex items-center gap-2 text-purple-700 p-4 bg-purple-50 rounded-lg">
                             <Icon name="spinner" className="fa-spin" />
                             <span>A IA está a processar o seu pedido...</span>
                         </div>
                     ) : (
-                        <ContentRenderer text={summaryState.content} className="text-purple-900" />
+                        <ContentRenderer text={summaryState.content} />
                     )}
                 </div>
             )}
