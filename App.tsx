@@ -670,8 +670,6 @@ ${content}
       setSavedETPs(updatedETPs);
       storage.saveETPs(updatedETPs);
       setMessage({ title: "Sucesso", text: `ETP "${name}" guardado com sucesso!` });
-      setPreviewContext({ type: 'etp', id: newDoc.id });
-      setIsPreviewModalOpen(true);
     } else {
       const newDoc: SavedDocument = {
         id: Date.now(),
@@ -687,8 +685,6 @@ ${content}
       setSavedTRs(updatedTRs);
       storage.saveTRs(updatedTRs);
       setMessage({ title: "Sucesso", text: `TR "${name}" guardado com sucesso!` });
-      setPreviewContext({ type: docType, id: newDoc.id });
-      setIsPreviewModalOpen(true);
     }
   };
   
