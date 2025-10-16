@@ -81,7 +81,11 @@ export const processSingleUploadedFile = async (
       text = await readFileAsArrayBuffer(file).then(getTextFromPdf);
     } else if (fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || fileName.endsWith('.docx')) {
       text = await readFileAsArrayBuffer(file).then(getTextFromDocx);
-    } else if (fileType === "text/plain" || fileName.endsWith('.txt')) {
+    } else if (
+        fileType === "text/plain" || fileName.endsWith('.txt') ||
+        fileType === "application/json" || fileName.endsWith('.json') ||
+        fileType === "text/markdown" || fileName.endsWith('.md')
+    ) {
       text = await readTextFile(file);
     } else {
       throw new Error(`Formato não suportado`);

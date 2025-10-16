@@ -1581,7 +1581,7 @@ Solicitação do usuário: "${refinePrompt}"
                       <label className="mt-2 w-full flex items-center justify-center px-4 py-3 bg-blue-50 border-2 border-dashed border-blue-200 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
                           <Icon name="upload" className="mr-2" />
                           <span className="text-sm font-semibold">Carregar ficheiros</span>
-                          <input type="file" className="hidden" multiple onChange={handleFileUpload} accept=".pdf,.docx,.txt" />
+                          <input type="file" className="hidden" multiple onChange={handleFileUpload} accept=".pdf,.docx,.txt,.json,.md" />
                       </label>
                     </div>
                   </div>
