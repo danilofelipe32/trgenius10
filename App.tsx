@@ -228,6 +228,11 @@ const App: React.FC = () => {
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
 
+  // Compliance Checker State
+  const [isComplianceModalOpen, setIsComplianceModalOpen] = useState(false);
+  const [complianceCheckResult, setComplianceCheckResult] = useState<string>('');
+  const [isCheckingCompliance, setIsCheckingCompliance] = useState<boolean>(false);
+
   // Inline rename state
   const [editingDoc, setEditingDoc] = useState<{ type: DocumentType; id: number; name: string; priority: Priority; } | null>(null);
 
@@ -514,6 +519,90 @@ const App: React.FC = () => {
         setLoadingSection(null);
     }
   };
+
+  const handleComplianceCheck = async () => {
+    setIsCheckingCompliance(true);
+    setIsComplianceModalOpen(true);
+    setComplianceCheckResult('A IA está a analisar o seu documento... Por favor, aguarde.');
+
+    const trContent = trSections
+        .map(section => {
+            const content = trSectionsContent[section.id] || '';
+            if (content && String(content).trim()) {
+                return `### ${section.title}\n${content}`;
+            }
+            return null;
+        })
+        .filter(Boolean)
+        .join('\n\n---\n\n');
+
+    if (!trContent.trim()) {
+        setComplianceCheckResult('O Termo de Referência está vazio. Por favor, preencha as seções antes de verificar a conformidade.');
+        setIsCheckingCompliance(false);
+        return;
+    }
+
+    const lawExcerpts = `
+    **Lei nº 14.133/2021 (Excertos Relevantes para Termo de Referência):**
+
+    **Art. 6º, Inciso XXIII - Definição de Termo de Referência:**
+    Documento necessário para a contratação de bens e serviços, que deve conter os seguintes parâmetros e elementos descritivos:
+    a) definição do objeto, incluídos sua natureza, os quantitativos, o prazo do contrato e, se for o caso, a possibilidade de sua prorrogação;
+    b) fundamentação da contratação, que consiste na referência aos estudos técnicos preliminares correspondentes;
+    c) descrição da solução como um todo, considerado todo o ciclo de vida do objeto;
+    d) requisitos da contratação;
+    e) modelo de execução do objeto;
+    f) modelo de gestão do contrato;
+    g) critérios de medição e de pagamento;
+    h) forma e critérios de seleção do fornecedor;
+    i) estimativas do valor da contratação;
+    j) adequação orçamentária.
+
+    **Art. 40 - Planejamento de Compras (aplicável a serviços também):**
+    § 1º O termo de referência deverá conter os elementos previstos no inciso XXIII do caput do art. 6º desta Lei, além das seguintes informações:
+    I - especificação do produto/serviço, observados os requisitos de qualidade, rendimento, compatibilidade, durabilidade e segurança;
+    II - indicação dos locais de entrega/execução e das regras para recebimentos provisório e definitivo;
+    III - especificação da garantia exigida e das condições de manutenção e assistência técnica, quando for o caso.
+    `;
+
+    const prompt = `
+    Você é um auditor especialista em licitações e contratos públicos, com profundo conhecimento da Lei nº 14.133/2021. Sua tarefa é realizar uma análise de conformidade de um Termo de Referência (TR).
+
+    **Contexto:**
+    A seguir, os excertos mais importantes da Lei nº 14.133/2021 para sua referência:
+    --- INÍCIO DA LEGISLAÇÃO DE REFERÊNCIA ---
+    ${lawExcerpts}
+    --- FIM DA LEGISLAÇÃO DE REFERÊNCIA ---
+
+    **Termo de Referência para Análise:**
+    A seguir, o conteúdo do Termo de Referência (TR) elaborado pelo usuário:
+    --- INÍCIO DO TR ---
+    ${trContent}
+    --- FIM DO TR ---
+
+    **Sua Tarefa:**
+    Analise o Termo de Referência fornecido e compare-o com os requisitos da Lei nº 14.133/2021 que lhe foram fornecidos.
+
+    Elabore um relatório de conformidade claro e objetivo, em formato Markdown. O relatório deve conter as seguintes seções:
+
+    1.  **✅ Pontos de Conformidade:** Liste os itens do TR que estão claramente alinhados com a legislação.
+    2.  **⚠️ Pontos de Atenção:** Identifique cláusulas ou seções que estão ambíguas, incompletas ou que podem gerar questionamentos jurídicos. Sugira melhorias e cite os artigos/alíneas pertinentes da lei.
+    3.  **❌ Itens Faltantes:** Aponte quais elementos obrigatórios ou recomendados pela Lei 14.133/21 (especialmente os listados acima) não foram encontrados no TR.
+    4.  **💡 Recomendações Gerais:** Forneça sugestões adicionais para aprimorar a clareza, a precisão e a segurança jurídica do documento.
+
+    Seja direto, técnico e use os emojis indicados para cada seção para facilitar a leitura.
+    `;
+
+    try {
+        const result = await callGemini(prompt);
+        setComplianceCheckResult(result);
+    } catch (error: any) {
+        setComplianceCheckResult(`Erro ao verificar a conformidade: ${error.message}`);
+    } finally {
+        setIsCheckingCompliance(false);
+    }
+};
+
 
   const validateForm = (docType: DocumentType, sections: Record<string, string>): string[] => {
     const errors: string[] = [];
@@ -1756,10 +1845,17 @@ Solicitação do usuário: "${refinePrompt}"
                   );
                 })}
                 <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-                    <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
+                    <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                            <Icon name="eraser" /> Limpar Formulário
+                            <Icon name="eraser" /> Limpar
+                        </button>
+                         <button 
+                            onClick={handleComplianceCheck}
+                            disabled={isCheckingCompliance}
+                            className="bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Icon name="check-double" /> {isCheckingCompliance ? 'A verificar...' : 'Verificar'}
                         </button>
                         <button onClick={() => handleSaveDocument('tr')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
                             <Icon name="save" /> Salvar TR
@@ -1868,6 +1964,27 @@ Solicitação do usuário: "${refinePrompt}"
           <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
             <pre className="whitespace-pre-wrap word-wrap font-sans text-sm text-slate-700">{analysisContent.content}</pre>
           </div>
+      </Modal>
+
+      <Modal
+        isOpen={isComplianceModalOpen}
+        onClose={() => setIsComplianceModalOpen(false)}
+        title="Relatório de Conformidade - Lei 14.133/21"
+        maxWidth="max-w-3xl"
+      >
+        {isCheckingCompliance && !complianceCheckResult.startsWith("Erro") ? (
+          <div className="flex items-center justify-center flex-col gap-4 p-8">
+              <Icon name="spinner" className="fa-spin text-4xl text-blue-600" />
+              <p className="text-slate-600 font-semibold">A IA está a analisar o seu documento... Por favor, aguarde.</p>
+          </div>
+        ) : (
+          <div className="p-4 bg-slate-50 rounded-lg max-h-[60vh] overflow-y-auto">
+              <pre className="whitespace-pre-wrap word-wrap font-sans text-sm text-slate-700">{complianceCheckResult}</pre>
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <button onClick={() => setIsComplianceModalOpen(false)} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">Fechar</button>
+        </div>
       </Modal>
 
       <Modal 
