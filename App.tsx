@@ -525,18 +525,26 @@ const App: React.FC = () => {
     setIsComplianceModalOpen(true);
     setComplianceCheckResult('A IA está a analisar o seu documento... Por favor, aguarde.');
 
-    const trContent = trSections
+    const trSectionsForAnalysis = trSections
         .map(section => {
             const content = trSectionsContent[section.id] || '';
             if (content && String(content).trim()) {
-                return `### ${section.title}\n${content}`;
+                const legalReference = section.tooltip?.match(/Conforme (Art\. [\s\S]+)/)?.[1]?.split('.')[0] || 'Não especificado';
+                return `
+---
+**Seção: ${section.title}**
+**Referência Legal:** ${legalReference}
+**Conteúdo:**
+${content}
+---
+`;
             }
             return null;
         })
         .filter(Boolean)
-        .join('\n\n---\n\n');
+        .join('\n');
 
-    if (!trContent.trim()) {
+    if (!trSectionsForAnalysis.trim()) {
         setComplianceCheckResult('O Termo de Referência está vazio. Por favor, preencha as seções antes de verificar a conformidade.');
         setIsCheckingCompliance(false);
         return;
@@ -544,53 +552,35 @@ const App: React.FC = () => {
 
     const lawExcerpts = `
     **Lei nº 14.133/2021 (Excertos Relevantes para Termo de Referência):**
-
-    **Art. 6º, Inciso XXIII - Definição de Termo de Referência:**
-    Documento necessário para a contratação de bens e serviços, que deve conter os seguintes parâmetros e elementos descritivos:
-    a) definição do objeto, incluídos sua natureza, os quantitativos, o prazo do contrato e, se for o caso, a possibilidade de sua prorrogação;
-    b) fundamentação da contratação, que consiste na referência aos estudos técnicos preliminares correspondentes;
-    c) descrição da solução como um todo, considerado todo o ciclo de vida do objeto;
-    d) requisitos da contratação;
-    e) modelo de execução do objeto;
-    f) modelo de gestão do contrato;
-    g) critérios de medição e de pagamento;
-    h) forma e critérios de seleção do fornecedor;
-    i) estimativas do valor da contratação;
-    j) adequação orçamentária.
-
-    **Art. 40 - Planejamento de Compras (aplicável a serviços também):**
-    § 1º O termo de referência deverá conter os elementos previstos no inciso XXIII do caput do art. 6º desta Lei, além das seguintes informações:
-    I - especificação do produto/serviço, observados os requisitos de qualidade, rendimento, compatibilidade, durabilidade e segurança;
-    II - indicação dos locais de entrega/execução e das regras para recebimentos provisório e definitivo;
-    III - especificação da garantia exigida e das condições de manutenção e assistência técnica, quando for o caso.
+    Art. 6º, XXIII: O TR deve conter: a) definição do objeto, quantitativos, prazo; b) fundamentação (referência ao ETP); c) descrição da solução (ciclo de vida); d) requisitos da contratação; e) modelo de execução; f) modelo de gestão; g) critérios de medição e pagamento; h) forma de seleção do fornecedor; i) estimativas de valor; j) adequação orçamentária.
+    Art. 40, § 1º: O TR deve conter os elementos do Art. 6º, XXIII, e mais: I - especificação do produto/serviço (qualidade, rendimento, etc.); II - locais de entrega e regras para recebimento; III - garantia, manutenção e assistência técnica.
     `;
 
     const prompt = `
-    Você é um auditor especialista em licitações e contratos públicos, com profundo conhecimento da Lei nº 14.133/2021. Sua tarefa é realizar uma análise de conformidade de um Termo de Referência (TR).
+    Você é um auditor especialista em licitações e contratos públicos, com profundo conhecimento da Lei nº 14.133/2021. Sua tarefa é realizar uma análise de conformidade detalhada, seção por seção, de um Termo de Referência (TR).
 
-    **Contexto:**
-    A seguir, os excertos mais importantes da Lei nº 14.133/2021 para sua referência:
-    --- INÍCIO DA LEGISLAÇÃO DE REFERÊNCIA ---
+    **Contexto Legal de Referência:**
     ${lawExcerpts}
-    --- FIM DA LEGISLAÇÃO DE REFERÊNCIA ---
 
-    **Termo de Referência para Análise:**
-    A seguir, o conteúdo do Termo de Referência (TR) elaborado pelo usuário:
-    --- INÍCIO DO TR ---
-    ${trContent}
-    --- FIM DO TR ---
+    **Termo de Referência para Análise (Estruturado por Seção):**
+    ${trSectionsForAnalysis}
 
     **Sua Tarefa:**
-    Analise o Termo de Referência fornecido e compare-o com os requisitos da Lei nº 14.133/2021 que lhe foram fornecidos.
+    Analise CADA seção do Termo de Referência fornecido, comparando o conteúdo da seção com a sua respectiva "Referência Legal" indicada.
 
-    Elabore um relatório de conformidade claro e objetivo, em formato Markdown. O relatório deve conter as seguintes seções:
+    Elabore um relatório de conformidade detalhado em formato Markdown. O relatório deve conter:
 
-    1.  **✅ Pontos de Conformidade:** Liste os itens do TR que estão claramente alinhados com a legislação.
-    2.  **⚠️ Pontos de Atenção:** Identifique cláusulas ou seções que estão ambíguas, incompletas ou que podem gerar questionamentos jurídicos. Sugira melhorias e cite os artigos/alíneas pertinentes da lei.
-    3.  **❌ Itens Faltantes:** Aponte quais elementos obrigatórios ou recomendados pela Lei 14.133/21 (especialmente os listados acima) não foram encontrados no TR.
-    4.  **💡 Recomendações Gerais:** Forneça sugestões adicionais para aprimorar a clareza, a precisão e a segurança jurídica do documento.
+    1.  **Análise por Seção:** Para cada seção do TR, crie um subtítulo e detalhe os seguintes pontos:
+        *   **Referência Legal:** Repita o artigo da lei correspondente.
+        *   **Análise:** Comente de forma objetiva se o conteúdo da seção atende aos requisitos do artigo.
+        *   **Status:** Classifique a seção com um dos seguintes emojis e rótulos: "✅ **Conforme**", "⚠️ **Ponto de Atenção**" (se estiver incompleto ou ambíguo), ou "❌ **Não Conforme**" (se contradiz a lei ou omite informação crucial).
+        *   **Recomendação:** Se o status for de atenção ou não conforme, forneça uma sugestão clara e prática para ajustar o texto e adequá-lo à legislação.
 
-    Seja direto, técnico e use os emojis indicados para cada seção para facilitar a leitura.
+    2.  **Resumo Geral:** Ao final, adicione uma seção de resumo com:
+        *   **Pontos Fortes:** Um resumo dos principais pontos positivos do documento.
+        *   **Principais Pontos a Melhorar:** Um resumo dos pontos mais críticos que precisam de ajuste em todo o documento.
+
+    Seja técnico, objetivo e didático. A estrutura do seu relatório é crucial para a clareza da análise.
     `;
 
     try {
