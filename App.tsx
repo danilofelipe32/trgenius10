@@ -1274,13 +1274,6 @@ Solicitação do usuário: "${refinePrompt}"
           </button>
          
           <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-             <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="md:hidden absolute top-6 right-6 text-slate-500 hover:text-slate-800 transition-colors"
-                aria-label="Fechar menu"
-             >
-                <Icon name="times" className="text-2xl" />
-             </button>
              <div className="flex items-center justify-between gap-3 mb-6 pt-10 md:pt-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
