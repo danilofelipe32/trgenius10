@@ -36,6 +36,15 @@ const readTextFile = (file: File): Promise<string> => {
   });
 };
 
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = error => reject(error);
+  });
+};
+
 const getTextFromDocx = async (arrayBuffer: ArrayBuffer): Promise<string> => {
   const result = await mammoth.extractRawText({ arrayBuffer });
   return result.value;
@@ -66,6 +75,8 @@ export const processSingleUploadedFile = async (
     const fileType = file.type;
     const fileName = file.name.toLowerCase();
 
+    const base64Content = await fileToBase64(file);
+
     if (fileType === "application/pdf" || fileName.endsWith('.pdf')) {
       text = await readFileAsArrayBuffer(file).then(getTextFromPdf);
     } else if (fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || fileName.endsWith('.docx')) {
@@ -84,7 +95,9 @@ export const processSingleUploadedFile = async (
     return {
       name: file.name,
       chunks,
-      selected: true
+      selected: true,
+      type: file.type,
+      content: base64Content
     };
   } catch (error: any) {
     console.error(`Erro ao processar o ficheiro ${file.name}:`, error);

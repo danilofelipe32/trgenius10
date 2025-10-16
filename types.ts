@@ -57,6 +57,8 @@ export interface FileChunk {
 
 export interface UploadedFile {
   name: string;
+  type: string;
+  content: string; // base64 encoded content
   chunks: string[];
   selected: boolean;
   isCore?: boolean;

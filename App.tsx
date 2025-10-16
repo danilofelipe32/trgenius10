@@ -248,6 +248,7 @@ const App: React.FC = () => {
   // Preview State
   const [previewContent, setPreviewContent] = useState<{ type: 'html' | 'text'; content: string } | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isRagPreviewModalOpen, setIsRagPreviewModalOpen] = useState(false);
 
 
   const priorityFilters: {
@@ -729,6 +730,22 @@ const App: React.FC = () => {
       const updatedFiles = uploadedFiles.filter((_, i) => i !== index);
       setUploadedFiles(updatedFiles);
       storage.saveStoredFiles(updatedFiles.filter(f => !f.isCore));
+  };
+
+  const handlePreviewRagFile = (file: UploadedFile) => {
+    if (!file.content || !file.type) {
+      setMessage({ title: 'Pré-visualização Indisponível', text: 'Este ficheiro foi carregado numa versão anterior e não tem conteúdo para pré-visualização. Por favor, remova-o e carregue-o novamente.' });
+      return;
+    }
+    const attachmentToPreview: Attachment = {
+      name: file.name,
+      type: file.type,
+      content: file.content,
+      size: 0, // not important for this preview
+      description: 'Documento de Apoio (RAG)'
+    };
+    setViewingAttachment(attachmentToPreview);
+    setIsRagPreviewModalOpen(true);
   };
 
   const handleLoadEtpForTr = (etpId: string) => {
@@ -1544,7 +1561,7 @@ Solicitação do usuário: "${refinePrompt}"
                         .map((file, index) => ({ file, originalIndex: index }))
                         .filter(({ file }) => !file.isCore)
                         .map(({ file, originalIndex }) => (
-                          <div key={originalIndex} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                          <div key={originalIndex} className="group flex items-center justify-between bg-slate-50 p-2 rounded-lg">
                               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
                                   <input
                                       type="checkbox"
@@ -1554,7 +1571,10 @@ Solicitação do usuário: "${refinePrompt}"
                                   />
                                   <span className="truncate">{file.name}</span>
                               </label>
-                              <button onClick={() => handleDeleteFile(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-red-600 flex-shrink-0"><Icon name="trash" /></button>
+                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                  <button onClick={() => handlePreviewRagFile(file)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
+                                  <button onClick={() => handleDeleteFile(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
+                              </div>
                           </div>
                         ))
                       }
@@ -1964,6 +1984,57 @@ Solicitação do usuário: "${refinePrompt}"
       </div>
     </Modal>
     
+    <Modal 
+      isOpen={isRagPreviewModalOpen} 
+      onClose={() => {
+        setIsRagPreviewModalOpen(false);
+        setViewingAttachment(null);
+      }} 
+      title={`Pré-visualização: ${viewingAttachment?.name}`}
+      maxWidth="max-w-4xl"
+    >
+      { viewingAttachment && (
+        <div className="w-full h-[70vh] bg-slate-100 rounded-lg border flex items-center justify-center">
+            {isLoadingPreview ? (
+                <div className="flex flex-col items-center gap-2 text-slate-600">
+                    <Icon name="spinner" className="fa-spin text-3xl" />
+                    <span>A carregar pré-visualização...</span>
+                </div>
+            ) : previewContent ? (
+                <div className="w-full h-full bg-white overflow-auto rounded-lg">
+                    {previewContent.type === 'text' ? (
+                        <pre className="text-sm whitespace-pre-wrap font-mono bg-slate-50 p-6 h-full">{previewContent.content}</pre>
+                    ) : (
+                        <div className="p-2 sm:p-8 bg-slate-100 min-h-full">
+                            <div className="prose max-w-4xl mx-auto p-8 bg-white shadow-lg" dangerouslySetInnerHTML={{ __html: previewContent.content }} />
+                        </div>
+                    )}
+                </div>
+            ) : viewingAttachment.type.startsWith('image/') ? (
+                <img src={getAttachmentDataUrl(viewingAttachment)} alt={viewingAttachment.name} className="max-w-full max-h-full object-contain" />
+            ) : viewingAttachment.type === 'application/pdf' ? (
+                <object data={getAttachmentDataUrl(viewingAttachment)} type="application/pdf" width="100%" height="100%">
+                    <p className="p-4 text-center text-slate-600">O seu navegador não suporta a pré-visualização de PDFs. <a href={getAttachmentDataUrl(viewingAttachment)} download={viewingAttachment.name} className="text-blue-600 hover:underline">Clique aqui para fazer o download.</a></p>
+                </object>
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                    <Icon name="file-download" className="text-5xl text-slate-400 mb-4" />
+                    <p className="text-slate-700 text-lg mb-2">A pré-visualização não está disponível para este tipo de ficheiro.</p>
+                    <p className="text-slate-500 mb-6 text-sm">({viewingAttachment.type})</p>
+                    <a 
+                        href={getAttachmentDataUrl(viewingAttachment)} 
+                        download={viewingAttachment.name}
+                        className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <Icon name="download" />
+                        Fazer Download
+                    </a>
+                </div>
+            )}
+        </div>
+      )}
+    </Modal>
+
     {installPrompt && !isInstallBannerVisible && (
         <button
             onClick={handleInstallClick}
