@@ -61,7 +61,6 @@ export interface UploadedFile {
   content: string; // base64 encoded content
   chunks: string[];
   selected: boolean;
-  isCore?: boolean;
 }
 
 export interface PreviewContext {

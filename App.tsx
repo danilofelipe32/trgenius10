@@ -706,7 +706,7 @@ const App: React.FC = () => {
     if (successfullyProcessed.length > 0) {
       const updatedFiles = [...uploadedFiles, ...successfullyProcessed];
       setUploadedFiles(updatedFiles);
-      storage.saveStoredFiles(updatedFiles.filter(f => !f.isCore));
+      storage.saveStoredFiles(updatedFiles);
     }
 
     setTimeout(() => {
@@ -717,19 +717,17 @@ const App: React.FC = () => {
   };
   
   const handleToggleFileSelection = (index: number) => {
-    if (uploadedFiles[index]?.isCore) return; // Prevent toggling core files
     const updatedFiles = uploadedFiles.map((file, i) =>
       i === index ? { ...file, selected: !file.selected } : file
     );
     setUploadedFiles(updatedFiles);
-    storage.saveStoredFiles(updatedFiles.filter(f => !f.isCore));
+    storage.saveStoredFiles(updatedFiles);
   };
 
   const handleDeleteFile = (index: number) => {
-      if(uploadedFiles[index]?.isCore) return;
       const updatedFiles = uploadedFiles.filter((_, i) => i !== index);
       setUploadedFiles(updatedFiles);
-      storage.saveStoredFiles(updatedFiles.filter(f => !f.isCore));
+      storage.saveStoredFiles(updatedFiles);
   };
 
   const handlePreviewRagFile = (file: UploadedFile) => {
@@ -1496,27 +1494,6 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                 </div>
 
-                {/* Core Knowledge Base File */}
-                {uploadedFiles.find(f => f.isCore) && (
-                    <div className="px-2 py-1">
-                        <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg border border-slate-200">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-not-allowed">
-                                <input
-                                    type="checkbox"
-                                    checked
-                                    disabled
-                                    className="form-checkbox h-4 w-4 text-slate-400 border-slate-300 rounded"
-                                    title="Sempre ativo"
-                                />
-                                <span className="truncate text-slate-600" title={uploadedFiles.find(f => f.isCore)?.name}>{uploadedFiles.find(f => f.isCore)?.name}</span>
-                            </label>
-                            <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
-                                <Icon name="lock" className="text-slate-400" title="Base de Conhecimento Principal (Não pode ser removida)" />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Accordion Section: RAG */}
                 <div className="py-1">
                   <button onClick={() => toggleSidebarSection('rag')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-slate-100 transition-colors">
@@ -1553,13 +1530,12 @@ Solicitação do usuário: "${refinePrompt}"
                         </div>
                       )}
                       
-                      {uploadedFiles.filter(f => !f.isCore).length === 0 && processingFiles.length === 0 && (
+                      {uploadedFiles.length === 0 && processingFiles.length === 0 && (
                           <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro carregado.</p>
                       )}
 
                       {uploadedFiles
                         .map((file, index) => ({ file, originalIndex: index }))
-                        .filter(({ file }) => !file.isCore)
                         .map(({ file, originalIndex }) => (
                           <div key={originalIndex} className="group flex items-center justify-between bg-slate-50 p-2 rounded-lg">
                               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
