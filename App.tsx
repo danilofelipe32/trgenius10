@@ -1289,7 +1289,6 @@ Solicitação do usuário: "${refinePrompt}"
         <div className="space-y-8">
           {allSections.map(section => {
             const content = doc.sections[section.id];
-            // FIX: Safely call .trim() by ensuring content is a string.
             if (content && String(content || '').trim()) {
               return (
                 <div key={section.id}>

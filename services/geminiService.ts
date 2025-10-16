@@ -19,20 +19,19 @@ export async function callGemini(prompt: string, useWebSearch: boolean = false):
 
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (useWebSearch && groundingChunks && groundingChunks.length > 0) {
-      // FIX: Cast groundingChunks to any[] to handle cases where its type is inferred as unknown[], which breaks chained method type inference and causes errors downstream.
       const sources = (groundingChunks as any[])
         .map((chunk) => chunk.web)
         .filter((web): web is { uri: string; title?: string } => !!web && !!web.uri)
         .map((web) => {
           let displayTitle = web.title;
-          // If no title is provided, create a cleaner one from the URI itself.
+          // Se não houver título, cria um mais limpo a partir do URI.
           if (!displayTitle) {
             try {
               const url = new URL(web.uri);
-              // Create a cleaner title from the hostname, which is better than the full long URL.
+              // Cria um título mais limpo a partir do nome do anfitrião, o que é melhor do que o URL longo completo.
               displayTitle = url.hostname.replace(/^www\./, '');
             } catch (e) {
-              // Fallback to the original URI if it's not a valid URL for parsing.
+              // Recorre ao URI original se não for um URL válido para análise.
               displayTitle = web.uri;
             }
           }
@@ -42,11 +41,11 @@ export async function callGemini(prompt: string, useWebSearch: boolean = false):
       const uniqueSources = Array.from(new Map(sources.map(item => [item.uri, item])).values());
 
       if (uniqueSources.length > 0) {
-        // FIX: Format sources as Markdown links to hide long URLs and improve readability.
+        // Formata as fontes como links Markdown para esconder URLs longos e melhorar a legibilidade.
         const sourcesText = uniqueSources
           .map((source, index) => `${index + 1}. [${source.title}](${source.uri})`)
           .join('\n');
-        // Use a more descriptive title for the sources section
+        // Usa um título mais descritivo para a seção de fontes.
         text += `\n\n---\n**Fontes da Web:**\n${sourcesText}`;
       }
     }
