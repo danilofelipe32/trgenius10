@@ -222,6 +222,7 @@ const App: React.FC = () => {
   // State for API and files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [processingFiles, setProcessingFiles] = useState<Array<{ name: string; status: 'processing' | 'success' | 'error'; message?: string }>>([]);
+  const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
 
 
   // UI State
@@ -477,6 +478,8 @@ const App: React.FC = () => {
     return '';
   }, [uploadedFiles]);
 
+  const webSearchInstruction = "\n\nAdicionalmente, para uma resposta mais completa e atualizada, realize uma pesquisa na web por informações relevantes, incluindo notícias, atualizações na Lei 14.133/21 e jurisprudências recentes sobre o tema.";
+
   const handleGenerate = async (docType: DocumentType, sectionId: string, title: string) => {
     const currentSections = docType === 'etp' ? etpSectionsContent : trSectionsContent;
     const allSections = docType === 'etp' ? etpSections : trSections;
@@ -524,9 +527,11 @@ const App: React.FC = () => {
       });
       prompt = `Você é um especialista em licitações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Termo de Referência (TR).\n\nPara isso, utilize as seguintes fontes de informação, em ordem de prioridade:\n1. O Estudo Técnico Preliminar (ETP) base.\n2. Os documentos de apoio (RAG) fornecidos.\n3. O conteúdo já preenchido em outras seções do TR.\n\n${context}\n${ragContext}\n\nGere um texto detalhado e bem fundamentado para a seção "${title}" do TR, extraindo e inferindo as informações necessárias das fontes fornecidas.`;
     }
+    
+    const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
     try {
-      const generatedText = await callGemini(prompt);
+      const generatedText = await callGemini(finalPrompt, useWebSearch);
       if (generatedText && !generatedText.startsWith("Erro:")) {
         handleSectionChange(docType, sectionId, generatedText);
       } else {
@@ -601,9 +606,11 @@ ${content}
 
     Seja técnico, objetivo e didático. A estrutura do seu relatório é crucial para a clareza da análise.
     `;
+    
+    const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
     try {
-        const result = await callGemini(prompt);
+        const result = await callGemini(finalPrompt, useWebSearch);
         setComplianceCheckResult(result);
     } catch (error: any) {
         setComplianceCheckResult(`Erro ao verificar a conformidade: ${error.message}`);
@@ -929,9 +936,11 @@ ${ragContext}
 3.  **Sugira Medidas de Mitigação:** Para cada risco, proponha uma ou duas ações concretas para mitigar ou eliminar o risco.
 
 Formate a sua resposta de forma clara e organizada, usando títulos para cada risco.`;
+    
+    const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
     try {
-        const analysisResult = await callGemini(prompt);
+        const analysisResult = await callGemini(finalPrompt, useWebSearch);
         setAnalysisContent({ title: `Análise de Riscos: ${title}`, content: analysisResult });
     } catch (error: any) {
         setAnalysisContent({ title: `Análise de Riscos: ${title}`, content: `Erro ao realizar análise: ${error.message}` });
@@ -973,7 +982,7 @@ Solicitação do usuário: "${refinePrompt}"
 --- TEXTO REFINADO ---`;
 
     try {
-      const refinedText = await callGemini(prompt);
+      const refinedText = await callGemini(prompt, useWebSearch);
       if (refinedText && !refinedText.startsWith("Erro:")) {
         setEditingContent({ ...editingContent, text: refinedText });
       } else {
@@ -1070,9 +1079,11 @@ Solicitação do usuário: "${refinePrompt}"
       ${ragContext}
 
       --- RESUMO EXECUTIVO ---`;
+      
+      const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
       try {
-        const summary = await callGemini(prompt);
+        const summary = await callGemini(finalPrompt, useWebSearch);
         if (summary && !summary.startsWith("Erro:")) {
           setSummaryState({ loading: false, content: summary });
         } else {
@@ -1689,9 +1700,9 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
           </aside>
           
-          <main className="flex-1 p-6 pb-28 md:p-10 overflow-y-auto" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
-             <header className="flex justify-between items-center mb-8">
-                <div className="w-full">
+          <main className="flex-1 p-4 pb-28 sm:p-6 md:p-10 overflow-y-auto" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
+             <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
+                <div className="flex-grow">
                   <div className="border-b border-slate-200">
                     <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                       <button
@@ -1717,7 +1728,15 @@ Solicitação do usuário: "${refinePrompt}"
                     </nav>
                   </div>
                 </div>
-                <div className="flex-shrink-0 ml-4 flex items-center">
+                <div className="flex-shrink-0 ml-4 flex items-center gap-4">
+                    <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-600" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
+                        <Icon name="globe-americas" />
+                        <span className="hidden sm:inline">Pesquisa Web</span>
+                        <div className="relative">
+                            <input id="web-search-toggle" type="checkbox" className="sr-only peer" checked={useWebSearch} onChange={() => setUseWebSearch(!useWebSearch)} />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </div>
+                    </label>
                     {isOnline ? (
                         <div className="flex items-center justify-center w-8 h-8 md:w-auto md:px-2 md:py-1 md:gap-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full" title="A ligação à Internet está ativa.">
                             <Icon name="wifi" />
@@ -2149,7 +2168,7 @@ Solicitação do usuário: "${refinePrompt}"
     {installPrompt && !isInstallBannerVisible && (
         <button
             onClick={handleInstallClick}
-            className="fixed bottom-44 right-8 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-700 transition-transform transform hover:scale-110 z-40"
+            className="fixed bottom-44 right-8 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-700 transition-transform transform hover:scale-110 z-50"
             title="Instalar App"
           >
             <Icon name="download" />
@@ -2157,7 +2176,7 @@ Solicitação do usuário: "${refinePrompt}"
     )}
     <button
       onClick={() => setIsNewDocModalOpen(true)}
-      className="fixed bottom-28 right-8 bg-pink-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-40"
+      className="fixed bottom-28 right-8 bg-pink-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-50"
       title="Criar Novo Documento"
     >
       <Icon name="plus" />

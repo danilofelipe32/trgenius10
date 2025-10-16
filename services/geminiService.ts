@@ -1,21 +1,40 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
+// A chave da API foi inserida diretamente no código para facilitar a fase de testes, conforme solicitado.
 const ai = new GoogleGenAI({ apiKey: "AIzaSyB1SGptDVNzOh888rzlNSkXCiT5P2goNo0" });
 
-export async function callGemini(prompt: string): Promise<string> {
+export async function callGemini(prompt: string, useWebSearch: boolean = false): Promise<string> {
   try {
-    // Per guidelines, use gemini-2.5-flash
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
+      ...(useWebSearch && { config: { tools: [{ googleSearch: {} }] } }),
     });
 
-    // Per guidelines, the simplest way to get text is response.text
-    const text = response.text;
+    let text = response.text;
     
-    // The original implementation had a check for safety finish reason.
     if (response.candidates && response.candidates[0] && response.candidates[0].finishReason === 'SAFETY') {
       return "Erro: A resposta foi bloqueada devido a configurações de segurança. O seu prompt pode conter conteúdo sensível.";
+    }
+
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (useWebSearch && groundingChunks && groundingChunks.length > 0) {
+      // FIX: Cast groundingChunks to any[] to handle cases where its type is inferred as unknown[], which breaks chained method type inference and causes errors downstream.
+      const sources = (groundingChunks as any[])
+        .map((chunk) => chunk.web)
+        .filter((web): web is { uri: string; title?: string } => !!web && !!web.uri)
+        .map((web) => ({ title: web.title || web.uri, uri: web.uri }));
+      
+      const uniqueSources = Array.from(new Map(sources.map(item => [item.uri, item])).values());
+
+      if (uniqueSources.length > 0) {
+        // FIX: Format sources as Markdown links to hide long URLs and improve readability.
+        const sourcesText = uniqueSources
+          .map((source, index) => `${index + 1}. [${source.title}](${source.uri})`)
+          .join('\n');
+        // Use a more descriptive title for the sources section
+        text += `\n\n---\n**Fontes da Web:**\n${sourcesText}`;
+      }
     }
 
     if (text) {
