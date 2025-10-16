@@ -29,8 +29,8 @@ export async function callGemini(prompt: string, useWebSearch: boolean = false):
           if (!displayTitle) {
             try {
               const url = new URL(web.uri);
-              // Combine hostname (without www) and pathname for a concise but descriptive title.
-              displayTitle = url.hostname.replace(/^www\./, '') + (url.pathname.length > 1 ? url.pathname : '');
+              // Create a cleaner title from the hostname, which is better than the full long URL.
+              displayTitle = url.hostname.replace(/^www\./, '');
             } catch (e) {
               // Fallback to the original URI if it's not a valid URL for parsing.
               displayTitle = web.uri;

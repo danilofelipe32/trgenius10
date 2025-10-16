@@ -1295,9 +1295,7 @@ Solicitação do usuário: "${refinePrompt}"
                 <div key={section.id}>
                   <h2 className="text-xl font-bold text-slate-700 mb-3">{section.title}</h2>
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <p className="whitespace-pre-wrap text-slate-800 font-sans leading-relaxed text-base">
-                      {content}
-                    </p>
+                    <ContentRenderer text={content} className="text-slate-800 font-sans leading-relaxed text-base" />
                   </div>
                 </div>
               );
