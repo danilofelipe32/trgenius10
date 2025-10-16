@@ -919,9 +919,9 @@ ${content}
             .join('\n');
     }
 
-    const prompt = `Você é um especialista em gestão de riscos em contratações públicas no Brasil. Sua tarefa é analisar a seção "${title}" de um ${docType.toUpperCase()} e identificar potenciais riscos.
+    const prompt = `Você é um especialista em gestão de riscos em contratações públicas no Brasil, com profundo conhecimento da Lei 14.133/21. Sua tarefa é realizar uma análise de risco detalhada sobre o conteúdo da seção "${title}" de um ${docType.toUpperCase()}.
 
-Use o contexto do documento e os documentos de apoio fornecidos.
+Utilize o contexto geral do documento e os documentos de apoio (RAG) para uma análise completa.
 
 **Seção a ser analisada:**
 ${sectionContent}
@@ -930,12 +930,24 @@ ${sectionContent}
 ${primaryContext}
 ${ragContext}
 
-**Sua Tarefa:**
-1.  **Identifique Riscos:** Liste de 3 a 5 riscos potenciais relacionados ao conteúdo da seção analisada.
-2.  **Classifique os Riscos:** Para cada risco, classifique a Probabilidade (Baixa, Média, Alta) e o Impacto (Baixo, Médio, Alto).
-3.  **Sugira Medidas de Mitigação:** Para cada risco, proponha uma ou duas ações concretas para mitigar ou eliminar o risco.
+**Sua Tarefa Detalhada:**
+Analise o conteúdo da seção fornecida e elabore um relatório de riscos detalhado em formato Markdown. O relatório deve seguir a estrutura abaixo para CADA risco identificado (identifique de 3 a 5 riscos principais):
 
-Formate a sua resposta de forma clara e organizada, usando títulos para cada risco.`;
+---
+
+**Risco [Nº]: [Nome do Risco]**
+*   **Descrição:** Detalhe o risco, explicando como ele pode se manifestar com base no conteúdo da seção e no contexto geral da contratação.
+*   **Causa Raiz:** Aponte as possíveis causas ou gatilhos para a ocorrência deste risco.
+*   **Classificação:**
+    *   **Probabilidade:** (Baixa, Média, Alta)
+    *   **Impacto:** (Baixo, Médio, Alto) - Descreva brevemente o impacto financeiro, operacional ou legal caso o risco se concretize.
+*   **Nível de Risco:** (Trivial, Tolerável, Substancial, Intolerável) - Com base na combinação de probabilidade e impacto.
+*   **Medidas de Mitigação:** Proponha ações claras e práticas para reduzir a probabilidade ou o impacto do risco. Inclua sugestões de como o texto da seção poderia ser ajustado para mitigar o risco.
+*   **Responsável Sugerido:** Indique quem deveria ser o responsável por monitorar e mitigar o risco (ex: Fiscal do Contrato, Gestor, Equipe Técnica).
+
+---
+
+Seja técnico, objetivo e forneça uma análise que agregue valor prático ao planejamento da contratação.`;
     
     const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
