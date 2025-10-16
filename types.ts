@@ -61,6 +61,7 @@ export interface UploadedFile {
   content: string; // base64 encoded content
   chunks: string[];
   selected: boolean;
+  isLocked?: boolean;
 }
 
 export interface PreviewContext {

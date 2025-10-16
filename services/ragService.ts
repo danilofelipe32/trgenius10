@@ -101,7 +101,8 @@ export const processSingleUploadedFile = async (
       chunks,
       selected: true,
       type: file.type,
-      content: base64Content
+      content: base64Content,
+      isLocked: false
     };
   } catch (error: any) {
     console.error(`Erro ao processar o ficheiro ${file.name}:`, error);

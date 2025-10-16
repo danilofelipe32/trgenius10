@@ -406,7 +406,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
-  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, rag: true });
+  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, knowledgeBase: true, rag: true });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewContext, setPreviewContext] = useState<PreviewContext>({ type: null, id: null });
@@ -1028,6 +1028,16 @@ ${content}
       storage.saveStoredFiles(updatedFiles);
   };
 
+  const handleToggleFileLock = (index: number) => {
+    const file = uploadedFiles[index];
+    const updatedFiles = uploadedFiles.map((f, i) =>
+        i === index ? { ...f, isLocked: !(f.isLocked ?? false) } : f
+    );
+    setUploadedFiles(updatedFiles);
+    storage.saveStoredFiles(updatedFiles);
+    addNotification('Status do Ficheiro', `O ficheiro "${file.name}" foi ${!(file.isLocked ?? false) ? 'bloqueado' : 'desbloqueado'}.`, 'info');
+  };
+
   const handlePreviewRagFile = (file: UploadedFile) => {
     if (!file.content || !file.type) {
       addNotification('Pré-visualização Indisponível', 'Este ficheiro foi carregado numa versão anterior e não tem conteúdo para pré-visualização. Por favor, remova-o e carregue-o novamente.', 'info');
@@ -1455,7 +1465,7 @@ Solicitação do usuário: "${refinePrompt}"
     setValidationErrors(new Set());
   }, []);
 
-  const toggleSidebarSection = (section: 'etps' | 'trs' | 'rag') => {
+  const toggleSidebarSection = (section: 'etps' | 'trs' | 'rag' | 'knowledgeBase') => {
     setOpenSidebarSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
   
@@ -1587,6 +1597,21 @@ Solicitação do usuário: "${refinePrompt}"
       displayedTRs: sortDocs(searchedDocs.trs)
     };
   }, [searchedDocs, sortOrder]);
+  
+  const { lockedFiles, unlockedFiles } = useMemo(() => {
+    const locked: { file: UploadedFile; originalIndex: number }[] = [];
+    const unlocked: { file: UploadedFile; originalIndex: number }[] = [];
+
+    uploadedFiles.forEach((file, index) => {
+        if (file.isLocked) {
+            locked.push({ file, originalIndex: index });
+        } else {
+            unlocked.push({ file, originalIndex: index });
+        }
+    });
+
+    return { lockedFiles: locked, unlockedFiles: unlocked };
+  }, [uploadedFiles]);
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
@@ -1820,8 +1845,45 @@ Solicitação do usuário: "${refinePrompt}"
                         <h3 className="text-sm font-semibold uppercase tracking-wider ml-2">Base de Conhecimento</h3>
                     </div>
                 </div>
+                
+                 {/* New Section: Base de Conhecimento (Locked Files) */}
+                <div className="py-1">
+                    <button onClick={() => toggleSidebarSection('knowledgeBase')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-green-50 transition-colors">
+                        <div className="flex items-center">
+                            <Icon name="lock" className="text-green-500 w-5 text-center" />
+                            <h3 className="text-sm font-semibold text-green-600 uppercase tracking-wider ml-2">Base de Conhecimento</h3>
+                        </div>
+                        <Icon name={openSidebarSections.knowledgeBase ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
+                    </button>
+                    <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.knowledgeBase ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                        <div className="space-y-2">
+                            {lockedFiles.length === 0 && (
+                                <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro bloqueado.</p>
+                            )}
+                            {lockedFiles.map(({ file, originalIndex }) => (
+                                <div key={originalIndex} className="group flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={file.selected}
+                                            onChange={() => handleToggleFileSelection(originalIndex)}
+                                            className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                                        />
+                                        <span className="truncate">{file.name}</span>
+                                    </label>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                        <button onClick={() => handleToggleFileLock(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Desbloquear Ficheiro">
+                                            <Icon name="lock" />
+                                        </button>
+                                        <button onClick={() => handlePreviewRagFile(file)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
-                {/* Accordion Section: RAG */}
+                {/* Accordion Section: RAG (Unlocked Files) */}
                 <div className="py-1">
                   <button onClick={() => toggleSidebarSection('rag')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-slate-100 transition-colors">
                      <div className="flex items-center">
@@ -1857,13 +1919,11 @@ Solicitação do usuário: "${refinePrompt}"
                         </div>
                       )}
                       
-                      {uploadedFiles.length === 0 && processingFiles.length === 0 && (
+                      {unlockedFiles.length === 0 && processingFiles.length === 0 && (
                           <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro carregado.</p>
                       )}
 
-                      {uploadedFiles
-                        .map((file, index) => ({ file, originalIndex: index }))
-                        .map(({ file, originalIndex }) => (
+                      {unlockedFiles.map(({ file, originalIndex }) => (
                           <div key={originalIndex} className="group flex items-center justify-between bg-slate-50 p-2 rounded-lg">
                               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
                                   <input
@@ -1875,6 +1935,9 @@ Solicitação do usuário: "${refinePrompt}"
                                   <span className="truncate">{file.name}</span>
                               </label>
                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                  <button onClick={() => handleToggleFileLock(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Bloquear e Mover para Base de Conhecimento">
+                                      <Icon name="lock-open" />
+                                  </button>
                                   <button onClick={() => handlePreviewRagFile(file)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
                                   <button onClick={() => handleDeleteFile(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
                               </div>
