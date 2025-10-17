@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -391,6 +391,51 @@ const PriorityIndicator: React.FC<{ priority?: Priority }> = ({ priority }) => {
 };
 
 
+const metaSections: Omit<SectionType, 'hasGen' | 'hasRiskAnalysis' | 'isAttachmentSection' | 'hasGen'>[] = [
+  { id: 'meta-objectOfContract', title: 'Objeto da Contratação', placeholder: 'Ex: Aquisição de notebooks...' },
+  { id: 'meta-legalBasis', title: 'Fundamento Legal (Lei 14.133/21)', placeholder: 'Ex: Art. 75, Inciso II, da Lei 14.133/21' },
+  { id: 'meta-demandOrigin', title: 'Origem da Demanda', placeholder: 'Ex: Memorando nº 123/2024 - Setor de TI' },
+  { id: 'meta-managingUnit', title: 'Unidade Gestora', placeholder: 'Ex: Departamento de Compras' },
+];
+
+const PrioritySelector: React.FC<{
+  priority: Priority;
+  setPriority: (p: Priority) => void;
+}> = ({ priority, setPriority }) => {
+  const priorities: { key: Priority; label: string; classes: string; icon: string }[] = [
+    { key: 'low', label: 'Baixa', classes: 'border-green-500 hover:bg-green-100 text-green-700', icon: 'angle-down' },
+    { key: 'medium', label: 'Média', classes: 'border-yellow-500 hover:bg-yellow-100 text-yellow-700', icon: 'equals' },
+    { key: 'high', label: 'Alta', classes: 'border-red-500 hover:bg-red-100 text-red-700', icon: 'angle-up' },
+  ];
+  const activeClasses: Record<Priority, string> = {
+    low: 'bg-green-500 text-white border-green-500',
+    medium: 'bg-yellow-500 text-white border-yellow-500',
+    high: 'bg-red-500 text-white border-red-500',
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-600 mb-2">Prioridade</label>
+      <div className="flex items-center gap-2">
+        {priorities.map(p => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => setPriority(p.key)}
+            className={`flex-1 px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-colors flex items-center justify-center gap-2 ${
+              priority === p.key ? activeClasses[p.key] : `bg-white ${p.classes}`
+            }`}
+          >
+            <Icon name={p.icon} />
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
 // --- Main App Component ---
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -404,6 +449,9 @@ const App: React.FC = () => {
   const [etpAttachments, setEtpAttachments] = useState<Attachment[]>([]);
   const [trAttachments, setTrAttachments] = useState<Attachment[]>([]);
   const [loadedEtpForTr, setLoadedEtpForTr] = useState<{ id: number; name: string; content: string } | null>(null);
+  const [currentEtpPriority, setCurrentEtpPriority] = useState<Priority>('medium');
+  const [currentTrPriority, setCurrentTrPriority] = useState<Priority>('medium');
+
 
   // State for API and files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -906,7 +954,7 @@ ${content}
         sections: { ...sections },
         attachments: etpAttachments,
         history: [],
-        priority: 'medium',
+        priority: currentEtpPriority,
       };
       const updatedETPs = [...savedETPs, newDoc];
       setSavedETPs(updatedETPs);
@@ -921,7 +969,7 @@ ${content}
         sections: { ...sections },
         attachments: trAttachments,
         history: [],
-        priority: 'medium',
+        priority: currentTrPriority,
       };
       const updatedTRs = [...savedTRs, newDoc];
       setSavedTRs(updatedTRs);
@@ -937,10 +985,12 @@ ${content}
       if (docType === 'etp') {
         setEtpSectionsContent(docToLoad.sections);
         setEtpAttachments(docToLoad.attachments || []);
+        setCurrentEtpPriority(docToLoad.priority || 'medium');
         storage.saveFormState('etpFormState', docToLoad.sections);
       } else {
         setTrSectionsContent(docToLoad.sections);
         setTrAttachments(docToLoad.attachments || []);
+        setCurrentTrPriority(docToLoad.priority || 'medium');
         storage.saveFormState('trFormState', docToLoad.sections);
       }
       addNotification('success', 'Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`);
@@ -1274,10 +1324,12 @@ Solicitação do usuário: "${refinePrompt}"
     if (docType === 'etp') {
         setEtpSectionsContent({});
         setEtpAttachments([]);
+        setCurrentEtpPriority('medium');
         storage.saveFormState('etpFormState', {});
     } else {
         setTrSectionsContent({});
         setTrAttachments([]);
+        setCurrentTrPriority('medium');
         setLoadedEtpForTr(null);
         const etpSelector = document.getElementById('etp-selector') as HTMLSelectElement;
         if (etpSelector) etpSelector.value = "";
@@ -1526,10 +1578,12 @@ Solicitação do usuário: "${refinePrompt}"
       if (template.type === 'etp') {
           setEtpSectionsContent(template.sections);
           setEtpAttachments([]);
+          setCurrentEtpPriority('medium');
           storage.saveFormState('etpFormState', template.sections);
       } else {
           setTrSectionsContent(template.sections);
           setTrAttachments([]);
+          setCurrentTrPriority('medium');
           setLoadedEtpForTr(null);
           const etpSelector = document.getElementById('etp-selector') as HTMLSelectElement;
           if (etpSelector) etpSelector.value = "";
@@ -2028,6 +2082,27 @@ Solicitação do usuário: "${refinePrompt}"
             </header>
             
             <div className={`${activeView === 'etp' ? 'block' : 'hidden'}`}>
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
+                    <h2 className="text-lg font-semibold text-slate-700 mb-4 border-b pb-3">Dados Gerais do Documento</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                        {metaSections.map(meta => (
+                            <div key={meta.id}>
+                                <label htmlFor={`etp-${meta.id}`} className="block text-sm font-medium text-slate-600 mb-1">{meta.title}</label>
+                                <input
+                                    type="text"
+                                    id={`etp-${meta.id}`}
+                                    value={etpSectionsContent[meta.id] || ''}
+                                    onChange={(e) => handleSectionChange('etp', meta.id, e.target.value)}
+                                    placeholder={meta.placeholder}
+                                    className="w-full p-2 bg-slate-50 border rounded-lg focus:ring-2 transition-colors border-slate-200 focus:ring-blue-500"
+                                />
+                            </div>
+                        ))}
+                        <div className="md:col-span-2">
+                           <PrioritySelector priority={currentEtpPriority} setPriority={setCurrentEtpPriority} />
+                        </div>
+                    </div>
+                </div>
                 {etpSections.map(section => {
                   if (section.isAttachmentSection) {
                     return (
@@ -2089,7 +2164,7 @@ Solicitação do usuário: "${refinePrompt}"
 
             <div className={`${activeView === 'tr' ? 'block' : 'hidden'}`}>
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                    <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">1. Carregar ETP para Contexto</label>
+                    <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar ETP para Contexto</label>
                     <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) salvo para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
                     <select
                         id="etp-selector"
@@ -2107,6 +2182,28 @@ Solicitação do usuário: "${refinePrompt}"
                             <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado com sucesso.</p>
                         </div>
                     )}
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
+                    <h2 className="text-lg font-semibold text-slate-700 mb-4 border-b pb-3">Dados Gerais do Documento</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                        {metaSections.map(meta => (
+                            <div key={meta.id}>
+                                <label htmlFor={`tr-${meta.id}`} className="block text-sm font-medium text-slate-600 mb-1">{meta.title}</label>
+                                <input
+                                    type="text"
+                                    id={`tr-${meta.id}`}
+                                    value={trSectionsContent[meta.id] || ''}
+                                    onChange={(e) => handleSectionChange('tr', meta.id, e.target.value)}
+                                    placeholder={meta.placeholder}
+                                    className="w-full p-2 bg-slate-50 border rounded-lg focus:ring-2 transition-colors border-slate-200 focus:ring-blue-500"
+                                />
+                            </div>
+                        ))}
+                         <div className="md:col-span-2">
+                           <PrioritySelector priority={currentTrPriority} setPriority={setCurrentTrPriority} />
+                        </div>
+                    </div>
                 </div>
 
                 {trSections.map(section => {
