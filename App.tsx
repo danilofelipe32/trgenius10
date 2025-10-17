@@ -2306,7 +2306,7 @@ Solicitação do usuário: "${refinePrompt}"
                 >
                     <div>
                         <div className="flex items-center gap-3">
-                            <Icon name="file" className="text-slate-500 text-xl" />
+                            <Icon name="file-alt" className="text-slate-500 text-xl" />
                             <p className="font-bold text-slate-700">Documento em Branco</p>
                         </div>
                         <p className="text-sm text-slate-500 mt-2 pl-8">Comece um ETP do zero.</p>
@@ -2340,7 +2340,7 @@ Solicitação do usuário: "${refinePrompt}"
                 >
                     <div>
                         <div className="flex items-center gap-3">
-                            <Icon name="file" className="text-slate-500 text-xl" />
+                            <Icon name="file-alt" className="text-slate-500 text-xl" />
                             <p className="font-bold text-slate-700">Documento em Branco</p>
                         </div>
                         <p className="text-sm text-slate-500 mt-2 pl-8">Comece um TR do zero.</p>
@@ -2354,7 +2354,7 @@ Solicitação do usuário: "${refinePrompt}"
                     >
                         <div>
                             <div className="flex items-center gap-3">
-                                <Icon name="gavel" className="text-current text-xl opacity-70" />
+                                <Icon name="wrench" className="text-current text-xl opacity-70" />
                                 <p className="font-bold">{template.name}</p>
                             </div>
                             <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
