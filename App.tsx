@@ -462,9 +462,6 @@ const App: React.FC = () => {
     content: string;
   } | null>(null);
 
-  // Speed Dial FAB State
-  const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
-
 
   const priorityFilters: {
     key: 'all' | Priority;
@@ -1579,11 +1576,6 @@ Solicitação do usuário: "${refinePrompt}"
     }
   };
 
-  const handleFabAction = () => {
-    setIsNewDocModalOpen(true);
-    setIsFabMenuOpen(false);
-  };
-
   const priorityFilteredDocs = useMemo(() => {
     const filterByPriority = (docs: SavedDocument[]) => {
       if (priorityFilter === 'all') {
@@ -2455,62 +2447,17 @@ Solicitação do usuário: "${refinePrompt}"
         </div>
       </Modal>
 
-    {/* Speed Dial FAB for Mobile */}
+    {/* Floating Action Button for Mobile */}
     <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom) + 1.5rem)' }}>
-      <div className="flex flex-col-reverse items-center gap-4">
-        <button
-          onClick={() => setIsFabMenuOpen(!isFabMenuOpen)}
-          className="bg-pink-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-10"
-          title="Criar Novo Documento"
-          aria-expanded={isFabMenuOpen}
-          aria-haspopup="true"
-        >
-          <Icon
-            name={isFabMenuOpen ? 'times' : 'plus'}
-            className={`transition-transform duration-300 ${isFabMenuOpen ? 'rotate-45' : ''}`}
-          />
-        </button>
-
-        <div
-          className={`transition-all duration-300 ease-in-out flex flex-col items-end gap-4 ${
-            isFabMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-          }`}
-        >
-          {/* Action: Criar TR */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={handleFabAction}>
-            <span className="bg-white text-slate-700 text-sm font-semibold py-1 px-3 rounded-md shadow-md">
-              Criar TR
-            </span>
-            <div
-              className="bg-purple-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-purple-700"
-              title="Criar Novo Termo de Referência"
-            >
-              <Icon name="gavel" />
-            </div>
-          </div>
-          {/* Action: Criar ETP */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={handleFabAction}>
-            <span className="bg-white text-slate-700 text-sm font-semibold py-1 px-3 rounded-md shadow-md">
-              Criar ETP
-            </span>
-            <div
-              className="bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700"
-              title="Criar Novo Estudo Técnico Preliminar"
-            >
-              <Icon name="file-alt" />
-            </div>
-          </div>
-        </div>
-      </div>
+      <button
+        onClick={() => setIsNewDocModalOpen(true)}
+        className="bg-pink-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-pink-700 transition-transform transform hover:scale-110"
+        title="Criar Novo Documento"
+        aria-haspopup="dialog"
+      >
+        <Icon name="plus" />
+      </button>
     </div>
-
-    {/* Overlay for Speed Dial */}
-    {isFabMenuOpen && (
-      <div
-        className="md:hidden fixed inset-0 bg-black bg-opacity-40 z-30"
-        onClick={() => setIsFabMenuOpen(false)}
-      ></div>
-    )}
 
     {installPrompt && isInstallBannerVisible && (
         <InstallPWA
