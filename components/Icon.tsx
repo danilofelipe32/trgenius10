@@ -1,11 +1,9 @@
-
 import React from 'react';
 
 interface IconProps {
   name: string;
   className?: string;
   onClick?: () => void;
-  // FIX: Add optional title prop to allow tooltips on icons, resolving a type error in App.tsx.
   title?: string;
 }
 
