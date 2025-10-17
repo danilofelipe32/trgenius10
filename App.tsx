@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -314,7 +314,7 @@ const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChan
               disabled={isLoading}
               className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[calc(50%-0.25rem)] sm:min-w-0"
             >
-              <Icon name="wand-magic-sparkles" className="mr-2" />
+              <Icon name={isLoading ? 'spinner' : 'wand-magic-sparkles'} className={`mr-2 ${isLoading ? 'fa-spin' : ''}`} />
               <span>{isLoading ? 'A gerar...' : 'Gerar com IA'}</span>
             </button>
           )}
@@ -692,14 +692,14 @@ const App: React.FC = () => {
     const ragContext = getRagContext();
 
     if(docType === 'etp') {
-      const demandaText = currentSections['etp-input-demanda'] || '';
-      if(sectionId !== 'etp-input-demanda' && !demandaText.trim()) {
-        addNotification('Atenção', "Por favor, preencha a seção '2. Demanda' primeiro, pois ela serve de base para as outras.", 'info');
-        setValidationErrors(new Set(['etp-input-demanda']));
+      const demandaText = currentSections['etp-2-necessidade'] || '';
+      if(sectionId !== 'etp-2-necessidade' && !demandaText.trim()) {
+        addNotification('Atenção', "Por favor, preencha a seção '2. Descrição da Necessidade da Contratação' primeiro, pois ela serve de base para as outras.", 'info');
+        setValidationErrors(new Set(['etp-2-necessidade']));
         setLoadingSection(null);
         return;
       }
-      context = `Contexto Principal (Demanda): ${demandaText}\n`;
+      context = `Contexto Principal (Necessidade da Contratação): ${demandaText}\n`;
       allSections.forEach(sec => {
         const content = currentSections[sec.id];
         if (sec.id !== sectionId && typeof content === 'string' && content.trim()) {
@@ -713,10 +713,10 @@ const App: React.FC = () => {
         setLoadingSection(null);
         return;
       }
-      const objetoText = currentSections['tr-input-objeto'] || '';
-      if(sectionId !== 'tr-input-objeto' && !objetoText.trim()) {
-        addNotification('Atenção', "Por favor, preencha a seção '1. Objeto da Contratação' primeiro, pois ela serve de base para as outras.", 'info');
-        setValidationErrors(new Set(['tr-input-objeto']));
+      const objetoText = currentSections['tr-1-objeto'] || '';
+      if(sectionId !== 'tr-1-objeto' && !objetoText.trim()) {
+        addNotification('Atenção', "Por favor, preencha a seção '1. Objeto' primeiro, pois ela serve de base para as outras.", 'info');
+        setValidationErrors(new Set(['tr-1-objeto']));
         setLoadingSection(null);
         return;
       }
@@ -826,23 +826,44 @@ ${content}
     const errors: string[] = [];
     const errorFields = new Set<string>();
 
-    const requiredFields: { [key in DocumentType]?: { id: string; name: string }[] } = {
-        etp: [
-            { id: 'etp-input-demanda', name: '2. Demanda' },
-        ],
-        tr: [
-            { id: 'tr-input-objeto', name: '1. Objeto da Contratação' },
-        ],
+    interface ValidationRule {
+      id: string;
+      name: string;
+      regex?: RegExp;
+      errorMessage?: string;
+    }
+
+    const requiredFields: { [key in DocumentType]?: ValidationRule[] } = {
+      etp: [
+        { id: 'etp-2-necessidade', name: '2. Descrição da Necessidade da Contratação' },
+        { id: 'etp-6-estimativa-quantidades', name: '6. Estimativas das Quantidades a serem Contratadas', regex: /\d+/, errorMessage: 'O campo "6. Estimativas das Quantidades" deve conter números.' },
+        { id: 'etp-7-estimativa-valor', name: '7. Estimativa do Valor da Contratação', regex: /(R\$\s?)?[\d\.,]+/, errorMessage: 'O campo "7. Estimativa do Valor" deve conter valores monetários (ex: R$ 1.000,00).' },
+        { id: 'etp-8-justificativa-parcelamento', name: '8. Justificativa para o Parcelamento ou não da Solução' },
+        { id: 'etp-13-viabilidade', name: '13. Declaração de Viabilidade da Contratação' },
+      ],
+      tr: [
+        { id: 'tr-1-objeto', name: '1. Objeto' },
+        { id: 'tr-2-justificativa', name: '2. Justificativa da Contratação' },
+        { id: 'tr-4-execucao-requisitos', name: '4. Modelo de Execução e Requisitos' },
+        { id: 'tr-5-prazo-execucao', name: '5. Prazo de Execução dos Serviços', regex: /\d+/, errorMessage: 'O campo "5. Prazo de Execução" deve especificar um número de dias ou meses.' },
+        { id: 'tr-6-prazo-vigencia', name: '6. Prazo de Vigência do Contrato', regex: /\d+/, errorMessage: 'O campo "6. Prazo de Vigência" deve especificar um número de meses.' },
+        { id: 'tr-15-gestao-contrato', name: '15. Modelo de Gestão do Contrato' },
+        { id: 'tr-17-forma-pagamento', name: '17. Forma de Pagamento' },
+        { id: 'tr-20-orcamento', name: '20. Adequação Orçamentária' },
+      ],
     };
 
     const fieldsToValidate = requiredFields[docType] || [];
 
     fieldsToValidate.forEach(field => {
-        // FIX: Safely call .trim() by ensuring the value from sections is treated as a string.
-        if (!sections[field.id] || String(sections[field.id] || '').trim() === '') {
-            errors.push(`O campo "${field.name}" é obrigatório.`);
-            errorFields.add(field.id);
-        }
+      const value = String(sections[field.id] || '').trim();
+      if (value === '') {
+        errors.push(`O campo "${field.name}" é obrigatório.`);
+        errorFields.add(field.id);
+      } else if (field.regex && !field.regex.test(value)) {
+        errors.push(field.errorMessage || `O campo "${field.name}" possui um formato inválido.`);
+        errorFields.add(field.id);
+      }
     });
 
     setValidationErrors(errorFields);
@@ -975,7 +996,6 @@ ${content}
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // FIX: Explicitly type `fileList` as `File[]` to resolve type inference issues with `Array.from(FileList)`.
     const fileList: File[] = Array.from(files);
 
     const filesToProcess = fileList.map(file => ({
@@ -1118,9 +1138,7 @@ ${content}
         }
 
         const trOtherSectionsContext = Object.entries(currentSections)
-            // FIX: Safely call .trim() by ensuring value is a string.
             .filter(([key, value]) => key !== sectionId && value && String(value || '').trim())
-            // FIX: Safely call .trim() by ensuring value is a string.
             .map(([key, value]) => `Contexto da Seção do TR (${trSections.find(s => s.id === key)?.title}):\n${String(value || '').trim()}`)
             .join('\n\n');
         
@@ -1129,7 +1147,6 @@ ${content}
     } else if (docType === 'etp') {
         primaryContext = Object.entries(currentSections)
             .filter(([key, value]) => key !== sectionId && value)
-            // FIX: Safely call .trim() by ensuring value is a string.
             .map(([key, value]) => `Contexto Adicional (${etpSections.find(s => s.id === key)?.title}): ${String(value || '').trim()}`)
             .join('\n');
     }
@@ -1230,7 +1247,6 @@ Solicitação do usuário: "${refinePrompt}"
     const docToExport = docs.find(d => d.id === id);
 
     if (docToExport) {
-        // FIX: Define `allSections` based on the document type before using it.
         const allSections = type === 'etp' ? etpSections : trSections;
         exportDocumentToPDF(docToExport, allSections);
     } else {
@@ -1620,12 +1636,8 @@ Solicitação do usuário: "${refinePrompt}"
               onClick={() => setIsSidebarOpen(false)}
             ></div>
           )}
-          
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden fixed top-4 left-4 z-30 bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center">
-            <Icon name={isSidebarOpen ? 'times' : 'bars'} />
-          </button>
          
-          <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+          <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-30 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
              <div className="flex items-center justify-between gap-3 mb-6 pt-10 md:pt-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
@@ -1944,11 +1956,11 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
           </aside>
           
-          <main className="flex-1 p-4 pb-28 sm:p-6 md:p-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
+          <main className="flex-1 p-4 pb-40 sm:p-6 md:p-10 md:pb-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
              <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
                 <div className="flex-grow">
                   <div className="border-b border-slate-200">
-                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <nav className="-mb-px hidden md:flex space-x-6" aria-label="Tabs">
                       <button
                         onClick={() => switchView('etp')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
@@ -1963,13 +1975,16 @@ Solicitação do usuário: "${refinePrompt}"
                         onClick={() => switchView('tr')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
                            activeView === 'tr'
-                            ? 'border-blue-600 text-blue-600'
+                            ? 'border-purple-600 text-purple-600'
                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                         }`}
                       >
                         Gerador de TR
                       </button>
                     </nav>
+                     <h2 className="md:hidden text-2xl font-bold text-slate-800 py-4">
+                        {activeView === 'etp' ? 'Gerador de ETP' : 'Gerador de TR'}
+                    </h2>
                   </div>
                 </div>
                 <div className="flex-shrink-0 ml-4 flex items-center gap-4">
@@ -2042,7 +2057,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                <div className="fixed bottom-[4.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2132,7 +2147,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                <div className="fixed bottom-[4.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
                     <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2432,22 +2447,14 @@ Solicitação do usuário: "${refinePrompt}"
         </div>
       </Modal>
 
-    {installPrompt && !isInstallBannerVisible && (
-        <button
-            onClick={handleInstallClick}
-            className="fixed bottom-44 right-8 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-700 transition-transform transform hover:scale-110 z-50"
-            title="Instalar App"
-          >
-            <Icon name="download" />
-        </button>
-    )}
     <button
       onClick={() => setIsNewDocModalOpen(true)}
-      className="fixed bottom-28 right-8 bg-pink-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-50"
+      className="md:hidden fixed bottom-24 right-6 bg-pink-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-20"
       title="Criar Novo Documento"
     >
       <Icon name="plus" />
     </button>
+    
     {installPrompt && isInstallBannerVisible && (
         <InstallPWA
             onInstall={handleInstallClick}
@@ -2464,6 +2471,22 @@ Solicitação do usuário: "${refinePrompt}"
             onClose={removeNotification}
           />
         ))}
+    </div>
+
+    {/* Mobile Bottom Navigation */}
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-slate-200 flex justify-around z-20" style={{ height: 'calc(4.5rem + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center h-full px-4 transition-colors ${activeView === 'etp' ? 'text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>
+            <Icon name="file-alt" className="text-2xl mb-0.5" />
+            <span className="text-xs font-semibold">ETP</span>
+        </button>
+        <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center h-full px-4 transition-colors ${activeView === 'tr' ? 'text-purple-600' : 'text-slate-500 hover:text-purple-600'}`}>
+            <Icon name="gavel" className="text-2xl mb-0.5" />
+            <span className="text-xs font-semibold">TR</span>
+        </button>
+        <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center h-full px-4 text-slate-500 hover:text-blue-600 transition-colors">
+            <Icon name="bars" className="text-2xl mb-0.5" />
+            <span className="text-xs font-semibold">Menu</span>
+        </button>
     </div>
     </div>
   );
