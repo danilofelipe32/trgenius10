@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -406,7 +406,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
-  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, knowledgeBase: true, rag: true });
+  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, knowledgeBase: true });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewContext, setPreviewContext] = useState<PreviewContext>({ type: null, id: null });
@@ -1473,7 +1473,7 @@ Solicitação do usuário: "${refinePrompt}"
     setValidationErrors(new Set());
   }, []);
 
-  const toggleSidebarSection = (section: 'etps' | 'trs' | 'rag' | 'knowledgeBase') => {
+  const toggleSidebarSection = (section: 'etps' | 'trs' | 'knowledgeBase') => {
     setOpenSidebarSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
   
@@ -1606,21 +1606,6 @@ Solicitação do usuário: "${refinePrompt}"
     };
   }, [searchedDocs, sortOrder]);
   
-  const { lockedFiles, unlockedFiles } = useMemo(() => {
-    const locked: { file: UploadedFile; originalIndex: number }[] = [];
-    const unlocked: { file: UploadedFile; originalIndex: number }[] = [];
-
-    uploadedFiles.forEach((file, index) => {
-        if (file.isLocked) {
-            locked.push({ file, originalIndex: index });
-        } else {
-            unlocked.push({ file, originalIndex: index });
-        }
-    });
-
-    return { lockedFiles: locked, unlockedFiles: unlocked };
-  }, [uploadedFiles]);
-
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -1847,118 +1832,75 @@ Solicitação do usuário: "${refinePrompt}"
                    </div>
                 </div>
                 
-                <div className="py-2 border-t mt-2">
-                    <div className="flex items-center text-slate-500 px-2 mt-2">
-                        <Icon name="database" className="w-5 text-center" />
-                        <h3 className="text-sm font-semibold uppercase tracking-wider ml-2">Base de Conhecimento</h3>
-                    </div>
-                </div>
-                
-                 {/* New Section: Base de Conhecimento (Locked Files) */}
-                <div className="py-1">
+                {/* Accordion Section: Base de Conhecimento */}
+                <div className="py-1 border-t mt-2 pt-3">
                     <button onClick={() => toggleSidebarSection('knowledgeBase')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-green-50 transition-colors">
                         <div className="flex items-center">
-                            <Icon name="lock" className="text-green-500 w-5 text-center" />
+                            <Icon name="database" className="text-green-500 w-5 text-center" />
                             <h3 className="text-sm font-semibold text-green-600 uppercase tracking-wider ml-2">Base de Conhecimento</h3>
                         </div>
                         <Icon name={openSidebarSections.knowledgeBase ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
                     </button>
                     <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.knowledgeBase ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                         <div className="space-y-2">
-                            {lockedFiles.length === 0 && (
-                                <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro bloqueado.</p>
+                             {processingFiles.length > 0 && (
+                                <div className="mb-3 p-2 bg-slate-100 rounded-lg">
+                                    <h4 className="text-xs font-bold text-slate-600 mb-2">A processar ficheiros...</h4>
+                                    <div className="w-full bg-slate-200 rounded-full h-1.5 mb-2">
+                                        <div 
+                                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" 
+                                            style={{ width: `${(processingFiles.filter(f => f.status !== 'processing').length / processingFiles.length) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <ul className="space-y-1">
+                                        {processingFiles.map(file => (
+                                            <li key={file.name} className="flex items-center text-xs justify-between">
+                                                <div className="flex items-center truncate">
+                                                    {file.status === 'processing' && <Icon name="spinner" className="fa-spin text-slate-400 w-4" />}
+                                                    {file.status === 'success' && <Icon name="check-circle" className="text-green-500 w-4" />}
+                                                    {file.status === 'error' && <Icon name="exclamation-circle" className="text-red-500 w-4" />}
+                                                    <span className="ml-2 truncate flex-1">{file.name}</span>
+                                                </div>
+                                                {file.status === 'error' && <span className="ml-2 text-red-600 font-semibold flex-shrink-0">{file.message}</span>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                             )}
+
+                            {uploadedFiles.length === 0 && processingFiles.length === 0 && (
+                                <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro carregado.</p>
                             )}
-                            {lockedFiles.map(({ file, originalIndex }) => (
-                                <div key={originalIndex} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
-                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
+                            
+                            {uploadedFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                    <label className={`flex items-center gap-2 text-sm font-medium text-slate-700 truncate ${file.isLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
                                         <input
                                             type="checkbox"
                                             checked={file.selected}
-                                            onChange={() => handleToggleFileSelection(originalIndex)}
-                                            className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                                            onChange={() => handleToggleFileSelection(index)}
+                                            className="form-checkbox h-4 w-4 text-blue-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={!!file.isLocked}
                                         />
                                         <span className="truncate">{file.name}</span>
                                     </label>
                                     <div className="flex items-center gap-1 flex-shrink-0">
-                                        <button onClick={() => handleToggleFileLock(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Desbloquear Ficheiro">
-                                            <Icon name="lock" />
+                                        <button onClick={() => handleToggleFileLock(index)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title={file.isLocked ? "Desbloquear Ficheiro" : "Bloquear Ficheiro"}>
+                                            <Icon name={file.isLocked ? "lock" : "lock-open"} />
                                         </button>
                                         <button onClick={() => handlePreviewRagFile(file)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
+                                        <button onClick={() => handleDeleteFile(index)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
                                     </div>
                                 </div>
                             ))}
+                            
+                            <label className="mt-2 w-full flex items-center justify-center px-4 py-3 bg-blue-50 border-2 border-dashed border-blue-200 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                                <Icon name="upload" className="mr-2" />
+                                <span className="text-sm font-semibold">Carregar ficheiros</span>
+                                <input type="file" className="hidden" multiple onChange={handleFileUpload} accept=".pdf,.docx,.txt,.json,.md" />
+                            </label>
                         </div>
                     </div>
-                </div>
-
-                {/* Accordion Section: RAG (Unlocked Files) */}
-                <div className="py-1">
-                  <button onClick={() => toggleSidebarSection('rag')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                     <div className="flex items-center">
-                        <Icon name="book" className="text-slate-500 w-5 text-center" />
-                        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider ml-2">Documentos de Apoio (RAG)</h3>
-                    </div>
-                    <Icon name={openSidebarSections.rag ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
-                  </button>
-                  <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.rag ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
-                    <div className="space-y-2">
-                      {processingFiles.length > 0 && (
-                        <div className="mb-3 p-2 bg-slate-100 rounded-lg">
-                          <h4 className="text-xs font-bold text-slate-600 mb-2">A processar ficheiros...</h4>
-                           <div className="w-full bg-slate-200 rounded-full h-1.5 mb-2">
-                              <div 
-                                className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" 
-                                style={{ width: `${(processingFiles.filter(f => f.status !== 'processing').length / processingFiles.length) * 100}%` }}
-                              ></div>
-                          </div>
-                          <ul className="space-y-1">
-                              {processingFiles.map(file => (
-                                  <li key={file.name} className="flex items-center text-xs justify-between">
-                                    <div className="flex items-center truncate">
-                                      {file.status === 'processing' && <Icon name="spinner" className="fa-spin text-slate-400 w-4" />}
-                                      {file.status === 'success' && <Icon name="check-circle" className="text-green-500 w-4" />}
-                                      {file.status === 'error' && <Icon name="exclamation-circle" className="text-red-500 w-4" />}
-                                      <span className="ml-2 truncate flex-1">{file.name}</span>
-                                    </div>
-                                      {file.status === 'error' && <span className="ml-2 text-red-600 font-semibold flex-shrink-0">{file.message}</span>}
-                                  </li>
-                              ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {unlockedFiles.length === 0 && processingFiles.length === 0 && (
-                          <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro carregado.</p>
-                      )}
-
-                      {unlockedFiles.map(({ file, originalIndex }) => (
-                          <div key={originalIndex} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
-                              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
-                                  <input
-                                      type="checkbox"
-                                      checked={file.selected}
-                                      onChange={() => handleToggleFileSelection(originalIndex)}
-                                      className="form-checkbox h-4 w-4 text-blue-600 rounded"
-                                  />
-                                  <span className="truncate">{file.name}</span>
-                              </label>
-                               <div className="flex items-center gap-1 flex-shrink-0">
-                                  <button onClick={() => handleToggleFileLock(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Bloquear e Mover para Base de Conhecimento">
-                                      <Icon name="lock-open" />
-                                  </button>
-                                  <button onClick={() => handlePreviewRagFile(file)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
-                                  <button onClick={() => handleDeleteFile(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
-                              </div>
-                          </div>
-                        ))
-                      }
-                      <label className="mt-2 w-full flex items-center justify-center px-4 py-3 bg-blue-50 border-2 border-dashed border-blue-200 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
-                          <Icon name="upload" className="mr-2" />
-                          <span className="text-sm font-semibold">Carregar ficheiros</span>
-                          <input type="file" className="hidden" multiple onChange={handleFileUpload} accept=".pdf,.docx,.txt,.json,.md" />
-                      </label>
-                    </div>
-                  </div>
                 </div>
             </div>
             <div className="mt-auto pt-4 border-t border-slate-200 flex items-center gap-2">
