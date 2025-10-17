@@ -346,7 +346,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidth} flex flex-col max-h-[90vh] transition-all duration-300 transform scale-95 animate-scale-in`} style={{ animation: 'scale-in 0.2s ease-out forwards' }}>
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidth} flex flex-col max-h-[90vh] transition-all duration-300 transform scale-95 animate-scale-in`}>
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-800">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -453,6 +453,14 @@ const App: React.FC = () => {
   const [previewContent, setPreviewContent] = useState<{ type: 'html' | 'text'; content: string } | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isRagPreviewModalOpen, setIsRagPreviewModalOpen] = useState(false);
+
+  // Generated Content Modal State
+  const [generatedContentModal, setGeneratedContentModal] = useState<{
+    docType: DocumentType;
+    sectionId: string;
+    title: string;
+    content: string;
+  } | null>(null);
 
 
   const priorityFilters: {
@@ -727,7 +735,7 @@ const App: React.FC = () => {
     try {
       const generatedText = await callGemini(finalPrompt, useWebSearch);
       if (generatedText && !generatedText.startsWith("Erro:")) {
-        handleSectionChange(docType, sectionId, generatedText);
+        setGeneratedContentModal({ docType, sectionId, title, content: generatedText });
       } else {
         addNotification('Erro de Geração', generatedText, 'error');
       }
@@ -1618,7 +1626,7 @@ Solicitação do usuário: "${refinePrompt}"
   }
 
   return (
-    <div className="bg-slate-100 min-h-screen text-slate-800 font-sans">
+    <div className="bg-slate-50 min-h-screen text-slate-800 font-sans">
        <div className="flex flex-col md:flex-row h-screen">
           {/* Mobile Overlay */}
           {isSidebarOpen && (
@@ -1721,7 +1729,7 @@ Solicitação do usuário: "${refinePrompt}"
                       {displayedETPs.length > 0 ? (
                         <ul className="space-y-2">
                           {displayedETPs.map(etp => (
-                            <li key={etp.id} className="group flex items-start justify-between bg-slate-50 p-2 rounded-lg">
+                            <li key={etp.id} className="flex items-start justify-between bg-slate-50 p-2 rounded-lg">
                               {editingDoc?.type === 'etp' && editingDoc?.id === etp.id ? (
                                   <div className="w-full" onBlur={handleEditorBlur}>
                                       <input
@@ -1758,7 +1766,7 @@ Solicitação do usuário: "${refinePrompt}"
                                     )}
                                 </div>
                               )}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              <div className="flex items-center gap-1 flex-shrink-0">
                                 <button onClick={() => handleStartEditing('etp', etp)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
                                 <button onClick={() => handleLoadDocument('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
                                 <button onClick={() => { setPreviewContext({ type: 'etp', id: etp.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
@@ -1787,7 +1795,7 @@ Solicitação do usuário: "${refinePrompt}"
                       {displayedTRs.length > 0 ? (
                         <ul className="space-y-2">
                           {displayedTRs.map(tr => (
-                            <li key={tr.id} className="group flex items-start justify-between bg-slate-50 p-2 rounded-lg">
+                            <li key={tr.id} className="flex items-start justify-between bg-slate-50 p-2 rounded-lg">
                                {editingDoc?.type === 'tr' && editingDoc?.id === tr.id ? (
                                   <div className="w-full" onBlur={handleEditorBlur}>
                                       <input
@@ -1824,7 +1832,7 @@ Solicitação do usuário: "${refinePrompt}"
                                     )}
                                 </div>
                               )}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              <div className="flex items-center gap-1 flex-shrink-0">
                                 <button onClick={() => handleStartEditing('tr', tr)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
                                 <button onClick={() => handleLoadDocument('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
                                 <button onClick={() => { setPreviewContext({ type: 'tr', id: tr.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
@@ -1861,7 +1869,7 @@ Solicitação do usuário: "${refinePrompt}"
                                 <p className="text-sm text-slate-400 italic px-2">Nenhum ficheiro bloqueado.</p>
                             )}
                             {lockedFiles.map(({ file, originalIndex }) => (
-                                <div key={originalIndex} className="group flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                <div key={originalIndex} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
                                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
                                         <input
                                             type="checkbox"
@@ -1871,7 +1879,7 @@ Solicitação do usuário: "${refinePrompt}"
                                         />
                                         <span className="truncate">{file.name}</span>
                                     </label>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                    <div className="flex items-center gap-1 flex-shrink-0">
                                         <button onClick={() => handleToggleFileLock(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Desbloquear Ficheiro">
                                             <Icon name="lock" />
                                         </button>
@@ -1924,7 +1932,7 @@ Solicitação do usuário: "${refinePrompt}"
                       )}
 
                       {unlockedFiles.map(({ file, originalIndex }) => (
-                          <div key={originalIndex} className="group flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                          <div key={originalIndex} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
                               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 truncate cursor-pointer">
                                   <input
                                       type="checkbox"
@@ -1934,7 +1942,7 @@ Solicitação do usuário: "${refinePrompt}"
                                   />
                                   <span className="truncate">{file.name}</span>
                               </label>
-                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                               <div className="flex items-center gap-1 flex-shrink-0">
                                   <button onClick={() => handleToggleFileLock(originalIndex)} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Bloquear e Mover para Base de Conhecimento">
                                       <Icon name="lock-open" />
                                   </button>
@@ -1972,7 +1980,7 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
           </aside>
           
-          <main className="flex-1 p-4 pb-28 sm:p-6 md:p-10 overflow-y-auto" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
+          <main className="flex-1 p-4 pb-28 sm:p-6 md:p-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
              <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
                 <div className="flex-grow">
                   <div className="border-b border-slate-200">
@@ -2429,6 +2437,36 @@ Solicitação do usuário: "${refinePrompt}"
         </div>
       )}
     </Modal>
+    
+    <Modal
+        isOpen={!!generatedContentModal}
+        onClose={() => setGeneratedContentModal(null)}
+        title={`Conteúdo Gerado por IA para: ${generatedContentModal?.title}`}
+        maxWidth="max-w-3xl"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setGeneratedContentModal(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition-colors">
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                if (generatedContentModal) {
+                  handleSectionChange(generatedContentModal.docType, generatedContentModal.sectionId, generatedContentModal.content);
+                  setGeneratedContentModal(null);
+                  addNotification('Sucesso', 'O conteúdo foi inserido na seção.', 'success');
+                }
+              }}
+              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Icon name="check" className="mr-2" /> Usar este Texto
+            </button>
+          </div>
+        }
+      >
+        <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
+            {generatedContentModal && <ContentRenderer text={generatedContentModal.content} />}
+        </div>
+      </Modal>
 
     {installPrompt && !isInstallBannerVisible && (
         <button
