@@ -1714,51 +1714,62 @@ Solicitação do usuário: "${refinePrompt}"
                       {displayedETPs.length > 0 ? (
                         <ul className="space-y-2">
                           {displayedETPs.map(etp => (
-                            <li key={etp.id} className="flex items-start justify-between bg-slate-50 p-2 rounded-lg">
-                              {editingDoc?.type === 'etp' && editingDoc?.id === etp.id ? (
-                                  <div className="w-full" onBlur={handleEditorBlur}>
-                                      <input
-                                          type="text"
-                                          value={editingDoc.name}
-                                          onChange={(e) => setEditingDoc({ ...editingDoc, name: e.target.value })}
-                                          onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleUpdateDocumentDetails();
-                                              if (e.key === 'Escape') setEditingDoc(null);
-                                          }}
-                                          className="text-sm font-medium w-full bg-white border border-blue-500 rounded px-1"
-                                          autoFocus
-                                      />
-                                      <select
-                                          value={editingDoc.priority}
-                                          onChange={(e) => setEditingDoc(prev => prev ? { ...prev, priority: e.target.value as Priority } : null)}
-                                          className="w-full mt-2 p-1 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 bg-white"
-                                      >
-                                          <option value="high">{priorityLabels.high}</option>
-                                          <option value="medium">{priorityLabels.medium}</option>
-                                          <option value="low">{priorityLabels.low}</option>
-                                      </select>
-                                  </div>
-                              ) : (
-                                <div className="flex-grow truncate mr-2">
-                                    <div className="flex items-center gap-2 truncate">
-                                        <PriorityIndicator priority={etp.priority} />
-                                        <span className="text-sm font-medium text-slate-700 truncate" title={etp.name}>{etp.name}</span>
+                             <li key={etp.id} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                {editingDoc?.type === 'etp' && editingDoc?.id === etp.id ? (
+                                    <div className="w-full flex items-center gap-2" onBlur={handleEditorBlur}>
+                                        <div className="flex-grow">
+                                            <input
+                                                type="text"
+                                                value={editingDoc.name}
+                                                onChange={(e) => setEditingDoc({ ...editingDoc, name: e.target.value })}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleUpdateDocumentDetails();
+                                                    if (e.key === 'Escape') setEditingDoc(null);
+                                                }}
+                                                className="text-sm font-medium w-full bg-white border border-blue-500 rounded px-1 py-0.5"
+                                                autoFocus
+                                            />
+                                            <select
+                                                value={editingDoc.priority}
+                                                onChange={(e) => setEditingDoc(prev => prev ? { ...prev, priority: e.target.value as Priority } : null)}
+                                                className="w-full mt-1 p-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 bg-white"
+                                            >
+                                                <option value="high">{priorityLabels.high}</option>
+                                                <option value="medium">{priorityLabels.medium}</option>
+                                                <option value="low">{priorityLabels.low}</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={handleUpdateDocumentDetails} className="w-6 h-6 text-green-600 hover:text-green-800" title="Salvar"><Icon name="check" /></button>
+                                            <button onClick={() => setEditingDoc(null)} className="w-6 h-6 text-red-600 hover:text-red-800" title="Cancelar"><Icon name="times" /></button>
+                                        </div>
                                     </div>
-                                    {etp.updatedAt && (
-                                        <p className="text-xs text-slate-400 mt-1 pl-5" title={`Criado em: ${new Date(etp.createdAt).toLocaleString('pt-BR')}`}>
-                                            Modif.: {new Date(etp.updatedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    )}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <button onClick={() => handleStartEditing('etp', etp)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
-                                <button onClick={() => handleLoadDocument('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
-                                <button onClick={() => { setPreviewContext({ type: 'etp', id: etp.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
-                                <button onClick={() => displayDocumentHistory(etp)} className="w-6 h-6 text-slate-500 hover:text-purple-600" title="Ver Histórico"><Icon name="history" /></button>
-                                <button onClick={() => handleDeleteDocument('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
-                              </div>
-                            </li>
+                                ) : (
+                                  <div className="flex items-center justify-between w-full gap-4">
+                                      {/* Name and Priority */}
+                                      <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                                          <PriorityIndicator priority={etp.priority} />
+                                          <span className="text-sm font-medium text-slate-700 truncate" title={etp.name}>{etp.name}</span>
+                                      </div>
+                                      {/* Date */}
+                                      <div className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0" title={etp.updatedAt ? `Atualizado em: ${new Date(etp.updatedAt).toLocaleString('pt-BR')}` : ''}>
+                                          {etp.updatedAt && (
+                                            <span>
+                                              {new Date(etp.updatedAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
+                                            </span>
+                                          )}
+                                      </div>
+                                      {/* Actions */}
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleStartEditing('etp', etp)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
+                                        <button onClick={() => handleLoadDocument('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
+                                        <button onClick={() => { setPreviewContext({ type: 'etp', id: etp.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
+                                        <button onClick={() => displayDocumentHistory(etp)} className="w-6 h-6 text-slate-500 hover:text-purple-600" title="Ver Histórico"><Icon name="history" /></button>
+                                        <button onClick={() => handleDeleteDocument('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
+                                      </div>
+                                  </div>
+                                )}
+                              </li>
                           ))}
                         </ul>
                       ) : <p className="text-sm text-slate-400 italic px-2">Nenhum ETP corresponde ao filtro.</p>}
@@ -1780,51 +1791,62 @@ Solicitação do usuário: "${refinePrompt}"
                       {displayedTRs.length > 0 ? (
                         <ul className="space-y-2">
                           {displayedTRs.map(tr => (
-                            <li key={tr.id} className="flex items-start justify-between bg-slate-50 p-2 rounded-lg">
-                               {editingDoc?.type === 'tr' && editingDoc?.id === tr.id ? (
-                                  <div className="w-full" onBlur={handleEditorBlur}>
-                                      <input
-                                          type="text"
-                                          value={editingDoc.name}
-                                          onChange={(e) => setEditingDoc({ ...editingDoc, name: e.target.value })}
-                                          onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleUpdateDocumentDetails();
-                                              if (e.key === 'Escape') setEditingDoc(null);
-                                          }}
-                                          className="text-sm font-medium w-full bg-white border border-blue-500 rounded px-1"
-                                          autoFocus
-                                      />
-                                      <select
-                                          value={editingDoc.priority}
-                                          onChange={(e) => setEditingDoc(prev => prev ? { ...prev, priority: e.target.value as Priority } : null)}
-                                          className="w-full mt-2 p-1 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 bg-white"
-                                      >
-                                          <option value="high">{priorityLabels.high}</option>
-                                          <option value="medium">{priorityLabels.medium}</option>
-                                          <option value="low">{priorityLabels.low}</option>
-                                      </select>
-                                  </div>
-                              ) : (
-                                <div className="flex-grow truncate mr-2">
-                                    <div className="flex items-center gap-2 truncate">
-                                        <PriorityIndicator priority={tr.priority} />
-                                        <span className="text-sm font-medium text-slate-700 truncate" title={tr.name}>{tr.name}</span>
+                             <li key={tr.id} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                {editingDoc?.type === 'tr' && editingDoc?.id === tr.id ? (
+                                    <div className="w-full flex items-center gap-2" onBlur={handleEditorBlur}>
+                                        <div className="flex-grow">
+                                            <input
+                                                type="text"
+                                                value={editingDoc.name}
+                                                onChange={(e) => setEditingDoc({ ...editingDoc, name: e.target.value })}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleUpdateDocumentDetails();
+                                                    if (e.key === 'Escape') setEditingDoc(null);
+                                                }}
+                                                className="text-sm font-medium w-full bg-white border border-blue-500 rounded px-1 py-0.5"
+                                                autoFocus
+                                            />
+                                            <select
+                                                value={editingDoc.priority}
+                                                onChange={(e) => setEditingDoc(prev => prev ? { ...prev, priority: e.target.value as Priority } : null)}
+                                                className="w-full mt-1 p-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 bg-white"
+                                            >
+                                                <option value="high">{priorityLabels.high}</option>
+                                                <option value="medium">{priorityLabels.medium}</option>
+                                                <option value="low">{priorityLabels.low}</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={handleUpdateDocumentDetails} className="w-6 h-6 text-green-600 hover:text-green-800" title="Salvar"><Icon name="check" /></button>
+                                            <button onClick={() => setEditingDoc(null)} className="w-6 h-6 text-red-600 hover:text-red-800" title="Cancelar"><Icon name="times" /></button>
+                                        </div>
                                     </div>
-                                    {tr.updatedAt && (
-                                        <p className="text-xs text-slate-400 mt-1 pl-5" title={`Criado em: ${new Date(tr.createdAt).toLocaleString('pt-BR')}`}>
-                                            Modif.: {new Date(tr.updatedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    )}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <button onClick={() => handleStartEditing('tr', tr)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
-                                <button onClick={() => handleLoadDocument('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
-                                <button onClick={() => { setPreviewContext({ type: 'tr', id: tr.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
-                                <button onClick={() => displayDocumentHistory(tr)} className="w-6 h-6 text-slate-500 hover:text-purple-600" title="Ver Histórico"><Icon name="history" /></button>
-                                <button onClick={() => handleDeleteDocument('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
-                              </div>
-                            </li>
+                                ) : (
+                                  <div className="flex items-center justify-between w-full gap-4">
+                                      {/* Name and Priority */}
+                                      <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                                          <PriorityIndicator priority={tr.priority} />
+                                          <span className="text-sm font-medium text-slate-700 truncate" title={tr.name}>{tr.name}</span>
+                                      </div>
+                                      {/* Date */}
+                                      <div className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0" title={tr.updatedAt ? `Atualizado em: ${new Date(tr.updatedAt).toLocaleString('pt-BR')}` : ''}>
+                                          {tr.updatedAt && (
+                                            <span>
+                                              {new Date(tr.updatedAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}
+                                            </span>
+                                          )}
+                                      </div>
+                                      {/* Actions */}
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleStartEditing('tr', tr)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
+                                        <button onClick={() => handleLoadDocument('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
+                                        <button onClick={() => { setPreviewContext({ type: 'tr', id: tr.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
+                                        <button onClick={() => displayDocumentHistory(tr)} className="w-6 h-6 text-slate-500 hover:text-purple-600" title="Ver Histórico"><Icon name="history" /></button>
+                                        <button onClick={() => handleDeleteDocument('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
+                                      </div>
+                                  </div>
+                                )}
+                              </li>
                           ))}
                         </ul>
                       ) : <p className="text-sm text-slate-400 italic px-2">Nenhum TR corresponde ao filtro.</p>}
