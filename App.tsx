@@ -837,7 +837,7 @@ ${content}
       etp: [
         { id: 'etp-2-necessidade', name: '2. Descrição da Necessidade da Contratação' },
         { id: 'etp-6-estimativa-quantidades', name: '6. Estimativas das Quantidades a serem Contratadas', regex: /\d+/, errorMessage: 'O campo "6. Estimativas das Quantidades" deve conter números.' },
-        { id: 'etp-7-estimativa-valor', name: '7. Estimativa do Valor da Contratação', regex: /(R\$\s?)?[\d\.,]+/, errorMessage: 'O campo "7. Estimativa do Valor" deve conter valores monetários (ex: R$ 1.000,00).' },
+        { id: 'etp-7-estimativa-valor', name: '7. Estimativa do Valor da Contratação', regex: /^(R\$\s*)?(\d{1,3}(\.\d{3})*|\d+)(,\d{2})?$/, errorMessage: 'O campo "7. Estimativa do Valor" deve conter um valor monetário válido (ex: 1000,00 ou R$ 1.000,00).' },
         { id: 'etp-8-justificativa-parcelamento', name: '8. Justificativa para o Parcelamento ou não da Solução' },
         { id: 'etp-13-viabilidade', name: '13. Declaração de Viabilidade da Contratação' },
       ],
