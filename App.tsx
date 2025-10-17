@@ -320,14 +320,21 @@ const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChan
           )}
         </div>
       </div>
-      <textarea
-        id={id}
-        value={value || ''}
-        onChange={(e) => onChange(id, e.target.value)}
-        placeholder={isLoading ? 'A IA está a gerar o conteúdo...' : placeholder}
-        className={`w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors ${hasError ? 'border-red-500 ring-red-200' : 'border-slate-200 focus:ring-blue-500'} ${isLoading ? 'loading-animation' : ''}`}
-        disabled={isLoading}
-      />
+      <div className="relative">
+        <textarea
+          id={id}
+          value={value || ''}
+          onChange={(e) => onChange(id, e.target.value)}
+          placeholder={isLoading ? 'A IA está a gerar o conteúdo...' : placeholder}
+          className={`w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors ${hasError ? 'border-red-500 ring-red-200' : 'border-slate-200 focus:ring-blue-500'} ${isLoading ? 'opacity-50' : ''}`}
+          disabled={isLoading}
+        />
+        {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-50/70 rounded-lg pointer-events-none">
+              <Icon name="spinner" className="fa-spin text-3xl text-blue-600" />
+            </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -481,7 +488,7 @@ const App: React.FC = () => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  const addNotification = useCallback((title: string, text: string, type: 'success' | 'error' | 'info') => {
+  const addNotification = useCallback((type: 'success' | 'error' | 'info', title: string, text: string) => {
       const newNotification = {
         id: Date.now(),
         title,
@@ -667,18 +674,42 @@ const App: React.FC = () => {
     updateFn(prev => ({ ...prev, [id]: value }));
   };
 
-  const getRagContext = useCallback(() => {
-    if (uploadedFiles.length > 0) {
-      const selectedFiles = uploadedFiles.filter(f => f.selected);
-      if (selectedFiles.length > 0) {
-        const context = selectedFiles
-          .map(f => `Contexto do ficheiro "${f.name}":\n${f.chunks.join('\n\n')}`)
-          .join('\n\n---\n\n');
-        return `\n\nAdicionalmente, utilize o conteúdo dos seguintes documentos de apoio (RAG) como base de conhecimento:\n\n--- INÍCIO DOS DOCUMENTOS DE APOIO ---\n${context}\n--- FIM DOS DOCUMENTOS DE APOIO ---`;
+  const getRagContext = useCallback(async (query: string): Promise<string> => {
+    if (uploadedFiles.length === 0) return '';
+    
+    const selectedFiles = uploadedFiles.filter(f => f.selected);
+    if (selectedFiles.length === 0) return '';
+
+    addNotification('info', `A resumir ${selectedFiles.length} ficheiro(s) para contexto...`, 'Este processo pode demorar alguns segundos.');
+
+    const summaryPromises = selectedFiles.map(file => {
+      const fileContent = file.chunks.join('\n\n');
+      if (!fileContent.trim()) {
+        return Promise.resolve('');
       }
+      const summaryPrompt = `Você é um assistente de IA especialista em resumir documentos. Resuma o texto a seguir, focando APENAS nas informações mais relevantes para o tópico: "${query}". O resumo deve ser conciso, direto e em formato de tópicos (bullet points) se possível. Retorne apenas o resumo. TEXTO: \n\n${fileContent}`;
+      return callGemini(summaryPrompt, false);
+    });
+
+    const summaries = await Promise.all(summaryPromises);
+    
+    const context = selectedFiles
+      .map((file, index) => {
+        const summary = summaries[index];
+        if (summary && !summary.startsWith("Erro:")) {
+          return `Contexto resumido do ficheiro "${file.name}":\n${summary}`;
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n\n---\n\n');
+
+    if (!context.trim()) {
+      return '';
     }
-    return '';
-  }, [uploadedFiles]);
+      
+    return `\n\nAdicionalmente, utilize o conteúdo resumido dos seguintes documentos de apoio (RAG) como base de conhecimento:\n\n--- INÍCIO DOS RESUMOS DE APOIO ---\n${context}\n--- FIM DOS RESUMOS DE APOIO ---`;
+  }, [uploadedFiles, addNotification]);
 
   const webSearchInstruction = "\n\nAdicionalmente, para uma resposta mais completa e atualizada, realize uma pesquisa na web por informações relevantes, incluindo notícias, atualizações na Lei 14.133/21 e jurisprudências recentes sobre o tema.";
 
@@ -689,12 +720,11 @@ const App: React.FC = () => {
 
     let context = '';
     let prompt = '';
-    const ragContext = getRagContext();
-
+    
     if(docType === 'etp') {
       const demandaText = currentSections['etp-input-demanda'] || '';
       if(sectionId !== 'etp-input-demanda' && !demandaText.trim()) {
-        addNotification('Atenção', "Por favor, preencha a seção '2. Demanda' primeiro, pois ela serve de base para as outras.", 'info');
+        addNotification('info', 'Atenção', "Por favor, preencha a seção '2. Demanda' primeiro, pois ela serve de base para as outras.");
         setValidationErrors(new Set(['etp-input-demanda']));
         setLoadingSection(null);
         return;
@@ -706,16 +736,17 @@ const App: React.FC = () => {
           context += `\nContexto Adicional (${sec.title}): ${content.trim()}\n`;
         }
       });
+      const ragContext = await getRagContext(title);
       prompt = `Você é um especialista em planeamento de contratações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Estudo Técnico Preliminar (ETP).\n\nUse o seguinte contexto do formulário como base:\n${context}\n${ragContext}\n\nGere um texto detalhado e tecnicamente correto para a seção "${title}", utilizando a Lei 14.133/21 como referência principal e incorporando as informações do formulário e dos documentos de apoio.`;
     } else { // TR
       if (!loadedEtpForTr) {
-        addNotification('Atenção', 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.', 'info');
+        addNotification('info', 'Atenção', 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.');
         setLoadingSection(null);
         return;
       }
       const objetoText = currentSections['tr-input-objeto'] || '';
       if(sectionId !== 'tr-input-objeto' && !objetoText.trim()) {
-        addNotification('Atenção', "Por favor, preencha a seção '1. Objeto da Contratação' primeiro, pois ela serve de base para as outras.", 'info');
+        addNotification('info', 'Atenção', "Por favor, preencha a seção '1. Objeto da Contratação' primeiro, pois ela serve de base para as outras.");
         setValidationErrors(new Set(['tr-input-objeto']));
         setLoadingSection(null);
         return;
@@ -727,6 +758,7 @@ const App: React.FC = () => {
           context += `\nContexto Adicional do TR já preenchido (${sec.title}): ${content.trim()}\n`;
         }
       });
+      const ragContext = await getRagContext(title);
       prompt = `Você é um especialista em licitações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Termo de Referência (TR).\n\nPara isso, utilize as seguintes fontes de informação, em ordem de prioridade:\n1. O Estudo Técnico Preliminar (ETP) base.\n2. Os documentos de apoio (RAG) fornecidos.\n3. O conteúdo já preenchido em outras seções do TR.\n\n${context}\n${ragContext}\n\nGere um texto detalhado e bem fundamentado para a seção "${title}" do TR, extraindo e inferindo as informações necessárias das fontes fornecidas.`;
     }
     
@@ -737,10 +769,10 @@ const App: React.FC = () => {
       if (generatedText && !generatedText.startsWith("Erro:")) {
         setGeneratedContentModal({ docType, sectionId, title, content: generatedText });
       } else {
-        addNotification('Erro de Geração', generatedText, 'error');
+        addNotification('error', 'Erro de Geração', generatedText);
       }
     } catch (error: any) {
-      addNotification('Erro Inesperado', `Falha ao gerar texto: ${error.message}`, 'error');
+      addNotification('error', 'Erro Inesperado', `Falha ao gerar texto: ${error.message}`);
     } finally {
         setLoadingSection(null);
     }
@@ -855,9 +887,9 @@ ${content}
     const validationMessages = validateForm(docType, sections);
     if (validationMessages.length > 0) {
         addNotification(
+            'error',
             "Campos Obrigatórios",
-            `Por favor, preencha os seguintes campos antes de salvar:\n- ${validationMessages.join('\n- ')}`,
-            'error'
+            `Por favor, preencha os seguintes campos antes de salvar:\n- ${validationMessages.join('\n- ')}`
         );
         return;
     }
@@ -879,7 +911,7 @@ ${content}
       const updatedETPs = [...savedETPs, newDoc];
       setSavedETPs(updatedETPs);
       storage.saveETPs(updatedETPs);
-      addNotification("Sucesso", `ETP "${name}" guardado com sucesso!`, 'success');
+      addNotification("success", "Sucesso", `ETP "${name}" guardado com sucesso!`);
     } else {
       const newDoc: SavedDocument = {
         id: Date.now(),
@@ -894,7 +926,7 @@ ${content}
       const updatedTRs = [...savedTRs, newDoc];
       setSavedTRs(updatedTRs);
       storage.saveTRs(updatedTRs);
-      addNotification("Sucesso", `TR "${name}" guardado com sucesso!`, 'success');
+      addNotification("success", "Sucesso", `TR "${name}" guardado com sucesso!`);
     }
   };
   
@@ -911,7 +943,7 @@ ${content}
         setTrAttachments(docToLoad.attachments || []);
         storage.saveFormState('trFormState', docToLoad.sections);
       }
-      addNotification('Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`, 'success');
+      addNotification('success', 'Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`);
       setActiveView(docType);
       if (window.innerWidth < 768) setIsSidebarOpen(false);
     }
@@ -927,7 +959,7 @@ ${content}
       setSavedTRs(updated);
       storage.saveTRs(updated);
     }
-    addNotification('Sucesso', `O documento foi apagado.`, 'success');
+    addNotification('success', 'Sucesso', `O documento foi apagado.`);
   };
 
   const handleStartEditing = (type: DocumentType, doc: SavedDocument) => {
@@ -1012,7 +1044,7 @@ ${content}
       const updatedFiles = [...uploadedFiles, ...successfullyProcessed];
       setUploadedFiles(updatedFiles);
       storage.saveStoredFiles(updatedFiles);
-      addNotification('Sucesso', `${successfullyProcessed.length} ficheiro(s) carregado(s).`, 'success');
+      addNotification('success', 'Sucesso', `${successfullyProcessed.length} ficheiro(s) carregado(s).`);
     }
 
     setTimeout(() => {
@@ -1043,12 +1075,12 @@ ${content}
     );
     setUploadedFiles(updatedFiles);
     storage.saveStoredFiles(updatedFiles);
-    addNotification('Status do Ficheiro', `O ficheiro "${file.name}" foi ${!(file.isLocked ?? false) ? 'bloqueado' : 'desbloqueado'}.`, 'info');
+    addNotification('info', 'Status do Ficheiro', `O ficheiro "${file.name}" foi ${!(file.isLocked ?? false) ? 'bloqueado' : 'desbloqueado'}.`);
   };
 
   const handlePreviewRagFile = (file: UploadedFile) => {
     if (!file.content || !file.type) {
-      addNotification('Pré-visualização Indisponível', 'Este ficheiro foi carregado numa versão anterior e não tem conteúdo para pré-visualização. Por favor, remova-o e carregue-o novamente.', 'info');
+      addNotification('info', 'Pré-visualização Indisponível', 'Este ficheiro foi carregado numa versão anterior e não tem conteúdo para pré-visualização. Por favor, remova-o e carregue-o novamente.');
       return;
     }
     const attachmentToPreview: Attachment = {
@@ -1078,7 +1110,7 @@ ${content}
 
   const handleImportEtpAttachments = () => {
     if (!loadedEtpForTr) {
-      addNotification('Aviso', 'Nenhum ETP carregado para importar anexos.', 'info');
+      addNotification('info', 'Aviso', 'Nenhum ETP carregado para importar anexos.');
       return;
     }
     const etp = savedETPs.find(e => e.id === loadedEtpForTr.id);
@@ -1088,12 +1120,12 @@ ${content}
       );
       if (newAttachments.length > 0) {
         setTrAttachments(prev => [...prev, ...newAttachments]);
-        addNotification('Sucesso', `${newAttachments.length} anexo(s) importado(s) do ETP "${etp.name}".`, 'success');
+        addNotification('success', 'Sucesso', `${newAttachments.length} anexo(s) importado(s) do ETP "${etp.name}".`);
       } else {
-        addNotification('Informação', 'Todos os anexos do ETP já constam neste TR.', 'info');
+        addNotification('info', 'Informação', 'Todos os anexos do ETP já constam neste TR.');
       }
     } else {
-      addNotification('Aviso', `O ETP "${loadedEtpForTr.name}" não possui anexos para importar.`, 'info');
+      addNotification('info', 'Aviso', `O ETP "${loadedEtpForTr.name}" não possui anexos para importar.`);
     }
   };
 
@@ -1102,13 +1134,13 @@ ${content}
     const sectionContent = currentSections[sectionId];
 
     if (!sectionContent || String(sectionContent || '').trim() === '') {
-        addNotification('Aviso', `Por favor, preencha ou gere o conteúdo da seção "${title}" antes de realizar a análise de riscos.`, 'info');
+        addNotification('info', 'Aviso', `Por favor, preencha ou gere o conteúdo da seção "${title}" antes de realizar a análise de riscos.`);
         return;
     }
 
     setAnalysisContent({ title: `Analisando Riscos para: ${title}`, content: 'A IA está a pensar... por favor, aguarde.' });
 
-    const ragContext = getRagContext();
+    const ragContext = await getRagContext(title);
     let primaryContext = '';
     
     if (docType === 'tr') {
@@ -1213,10 +1245,10 @@ Solicitação do usuário: "${refinePrompt}"
       if (refinedText && !refinedText.startsWith("Erro:")) {
         setEditingContent({ ...editingContent, text: refinedText });
       } else {
-        addNotification("Erro de Refinamento", refinedText, 'error');
+        addNotification("error", "Erro de Refinamento", refinedText);
       }
     } catch (error: any) {
-      addNotification('Erro Inesperado', `Falha ao refinar o texto: ${error.message}`, 'error');
+      addNotification('error', 'Erro Inesperado', `Falha ao refinar o texto: ${error.message}`);
     } finally {
       setIsRefining(false);
     }
@@ -1234,7 +1266,7 @@ Solicitação do usuário: "${refinePrompt}"
         const allSections = type === 'etp' ? etpSections : trSections;
         exportDocumentToPDF(docToExport, allSections);
     } else {
-        addNotification('Erro', 'Não foi possível encontrar o documento para exportar.', 'error');
+        addNotification('error', 'Erro', 'Não foi possível encontrar o documento para exportar.');
     }
   };
   
@@ -1251,7 +1283,7 @@ Solicitação do usuário: "${refinePrompt}"
         if (etpSelector) etpSelector.value = "";
         storage.saveFormState('trFormState', {});
     }
-    addNotification('Formulário Limpo', `O formulário do ${docType.toUpperCase()} foi limpo.`, 'info');
+    addNotification('info', 'Formulário Limpo', `O formulário do ${docType.toUpperCase()} foi limpo.`);
   }, [addNotification]);
 
   const getAttachmentDataUrl = (attachment: Attachment) => {
@@ -1266,7 +1298,7 @@ Solicitação do usuário: "${refinePrompt}"
       const doc = docs.find(d => d.id === id);
 
       if (!doc) {
-        addNotification('Erro', 'Documento não encontrado para gerar o resumo.', 'error');
+        addNotification('error', 'Erro', 'Documento não encontrado para gerar o resumo.');
         return;
       }
 
@@ -1289,7 +1321,7 @@ Solicitação do usuário: "${refinePrompt}"
         return;
       }
       
-      const ragContext = getRagContext();
+      const ragContext = await getRagContext("Resumo Geral do Documento");
 
       const prompt = `Você é um assistente especializado em analisar documentos de licitações públicas. Sua tarefa é criar um resumo executivo do "Documento Principal" a seguir. Utilize os "Documentos de Apoio (RAG)" como contexto para entender melhor o tema.
 
@@ -1482,9 +1514,9 @@ Solicitação do usuário: "${refinePrompt}"
     switchView(docType);
     handleClearForm(docType)();
     addNotification(
+        'info',
         'Novo Documento',
-        `Um novo formulário para ${docType.toUpperCase()} foi iniciado.`,
-        'info'
+        `Um novo formulário para ${docType.toUpperCase()} foi iniciado.`
     );
   }, [switchView, handleClearForm, addNotification]);
 
@@ -1504,9 +1536,9 @@ Solicitação do usuário: "${refinePrompt}"
           storage.saveFormState('trFormState', template.sections);
       }
       addNotification(
+          'success',
           'Template Carregado',
-          `Um novo documento foi iniciado usando o template "${template.name}".`,
-          'success'
+          `Um novo documento foi iniciado usando o template "${template.name}".`
       );
   }, [switchView, addNotification]);
 
@@ -1552,10 +1584,10 @@ Solicitação do usuário: "${refinePrompt}"
         // Fallback: Copy to clipboard
         try {
             await navigator.clipboard.writeText(shareData.url);
-            addNotification("Link Copiado", "O link da aplicação foi copiado para a sua área de transferência!", 'success');
+            addNotification("success", "Link Copiado", "O link da aplicação foi copiado para a sua área de transferência!");
         } catch (error) {
             console.error('Erro ao copiar o link:', error);
-            addNotification("Erro", "Não foi possível copiar o link. Por favor, copie manualmente: https://trgenius.netlify.app/", 'error');
+            addNotification("error", "Erro", "Não foi possível copiar o link. Por favor, copie manualmente: https://trgenius.netlify.app/");
         }
     }
   };
@@ -2417,7 +2449,7 @@ Solicitação do usuário: "${refinePrompt}"
                 if (generatedContentModal) {
                   handleSectionChange(generatedContentModal.docType, generatedContentModal.sectionId, generatedContentModal.content);
                   setGeneratedContentModal(null);
-                  addNotification('Sucesso', 'O conteúdo foi inserido na seção.', 'success');
+                  addNotification('success', 'Sucesso', 'O conteúdo foi inserido na seção.');
                 }
               }}
               className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
