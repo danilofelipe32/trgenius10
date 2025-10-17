@@ -6,7 +6,7 @@ interface AttachmentManagerProps {
   attachments: Attachment[];
   onAttachmentsChange: (attachments: Attachment[]) => void;
   onPreview: (attachment: Attachment) => void;
-  addNotification: (title: string, text: string, type: 'success' | 'error' | 'info') => void;
+  addNotification: (type: 'success' | 'error' | 'info', title: string, text: string) => void;
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -71,7 +71,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
       if (currentTotalSize + file.size > TOTAL_SIZE_LIMIT_BYTES) {
         const errorMessage = `Limite de ${TOTAL_SIZE_LIMIT_MB}MB excedido.`;
         setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: errorMessage } : p));
-        addNotification('Erro de Anexo', `Não foi possível adicionar "${file.name}". O tamanho total dos anexos excederia o limite de ${TOTAL_SIZE_LIMIT_MB}MB.`, 'error');
+        addNotification('error', 'Erro de Anexo', `Não foi possível adicionar "${file.name}". O tamanho total dos anexos excederia o limite de ${TOTAL_SIZE_LIMIT_MB}MB.`);
         // Stop processing further files in this batch
         break; 
       }
@@ -91,7 +91,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
         console.error("Error converting file to base64", error);
         const errorMessage = 'Falha na conversão.';
         setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: errorMessage } : p));
-        addNotification('Erro', `Não foi possível processar o ficheiro "${file.name}".`, 'error');
+        addNotification('error', 'Erro', `Não foi possível processar o ficheiro "${file.name}".`);
       }
     }
 
