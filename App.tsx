@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -1876,7 +1876,7 @@ Solicitação do usuário: "${refinePrompt}"
 
   const handleEditingRiskNumberChange = (field: 'probability' | 'impact', value: string) => {
     const numValue = Number(value);
-    const textMap: Record<number, string> = { 5: 'Baixo', 10: 'Médio', 15: 'Alto' };
+    const textMap: Record<number, string> = { 5: 'Baixa', 10: 'Média', 15: 'Alta' };
     const textField = field === 'probability' ? 'probabilityText' : 'impactText';
     
     setEditingRisk(prev => prev ? { 
@@ -2531,6 +2531,9 @@ Solicitação do usuário: "${refinePrompt}"
                         </div>
                     </div>
                     <textarea value={riskMapContent.introduction} onChange={e => handleRiskMapChange('introduction', e.target.value)} className="w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors border-slate-200 focus:ring-yellow-500" />
+                    <div className="mt-4 rounded-lg overflow-hidden shadow-sm border border-slate-200">
+                        <img src="https://i.imgur.com/adyNdVk.png" alt="Matriz de Risco Exemplo" className="w-full h-auto object-cover" />
+                    </div>
                 </div>
 
                 {/* Identificação de Riscos */}
@@ -2624,7 +2627,7 @@ Solicitação do usuário: "${refinePrompt}"
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-slate-800">4 - ACOMPANHAMENTO DAS AÇÕES DE TRATAMENTO DE RISCOS</h2>
-                        <button onClick={() => setEditingFollowUp({ id: Date.now(), date: '', riskId: '', actionId: '', notes: '' })} className="bg-yellow-100 text-yellow-800 font-bold py-2 px-4 rounded-lg hover:bg-yellow-200 transition-colors text-sm flex items-center gap-2" disabled={riskMapContent.risks.length === 0}>
+                        <button onClick={() => setEditingFollowUp({ id: Date.now(), date: '', riskId: '', actionId: '', notes: '' })} className="bg-yellow-100 text-yellow-800 font-bold py-2 px-4 rounded-lg hover:bg-yellow-200 transition-colors text-sm flex items-center gap-2">
                             <Icon name="plus" /> Adicionar Acompanhamento
                         </button>
                     </div>
@@ -2981,6 +2984,25 @@ Solicitação do usuário: "${refinePrompt}"
                 ))}
             </div>
         </div>
+        
+        {/* Mapa de Riscos */}
+        <div className="mb-8">
+            <h3 className="text-lg font-bold text-yellow-800 mb-3 border-b-2 border-yellow-200 pb-2">Mapa de Riscos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <button 
+                    onClick={() => handleCreateNewDocument('mapa-riscos')}
+                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
+                >
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <Icon name="shield-alt" className="text-slate-500 text-xl" />
+                            <p className="font-bold text-slate-700">Novo Mapa de Risco</p>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um Mapa de Riscos do zero.</p>
+                    </div>
+                </button>
+            </div>
+        </div>
 
         {/* TR Templates */}
         <div>
@@ -3168,7 +3190,7 @@ Solicitação do usuário: "${refinePrompt}"
                         <label className="block text-sm font-medium text-slate-700">Impacto (I)</label>
                         <select value={editingRisk.impact} onChange={e => handleEditingRiskNumberChange('impact', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
                             <option value={5}>5 (Baixo)</option>
-                            <option value={10}>10 (Médio)</option>
+                            <option value={10}>10 (Média)</option>
                             <option value={15}>15 (Alto)</option>
                         </select>
                     </div>
