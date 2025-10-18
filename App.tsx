@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, Attachment, DocumentVersion, Priority, Template, Notification as NotificationType } from './types';
+import { Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, Attachment, DocumentVersion, Priority, Template, Notification as NotificationType, SavedRiskMap, RiskRevision, RiskItem, RiskAction, RiskFollowUp } from './types';
 import * as storage from './services/storageService';
 import { callGemini } from './services/geminiService';
 import { processSingleUploadedFile, chunkText } from './services/ragService';
@@ -142,7 +143,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -385,6 +386,26 @@ const PriorityIndicator: React.FC<{ priority?: Priority }> = ({ priority }) => {
 };
 
 
+const exampleRisks = [
+  { id: 'R01', risk: 'Alteração do escopo dos serviços a serem contratados.', relatedTo: 'Planejamento da Contratação', p: 5, i: 10 },
+  { id: 'R02', risk: 'Não elaboração do Roteiro Próprio de Métricas de Software.', relatedTo: 'Planejamento da Contratação', p: 10, i: 10 },
+  { id: 'R03', risk: 'Falta de clareza pelo requisitante quanto às demandas a serem desenvolvidas e manutenidas.', relatedTo: 'Planejamento da Contratação', p: 10, i: 15 },
+  { id: 'R04', risk: 'Atraso no processo administrativo de contratação.', relatedTo: 'Planejamento da Contratação', p: 10, i: 10 },
+  { id: 'R05', risk: 'Não publicação do Processo de Desenvolvimento de Software.', relatedTo: 'Planejamento da Contratação', p: 5, i: 10 },
+  { id: 'R06', risk: 'Não elaboração dos templates dos documentos do Processo de Desenvolvimento de Software.', relatedTo: 'Planejamento da Contratação', p: 10, i: 5 },
+  { id: 'R07', risk: 'Ausência de recursos orçamentários ou financeiros.', relatedTo: 'Planejamento da Contratação', p: 10, i: 15 },
+  { id: 'R08', risk: 'Atraso ou suspensão no processo licitatório em face de impugnações.', relatedTo: 'Seleção do Fornecedor', p: 15, i: 10 },
+  { id: 'R09', risk: 'Valores licitados superiores aos estimados para a contratação dos serviços.', relatedTo: 'Seleção do Fornecedor', p: 5, i: 15 },
+  { id: 'R10', risk: 'Falta de ferramenta própria para gestão de demandas de Fábrica de Software.', relatedTo: 'Gestão Contratual', p: 15, i: 15 },
+  { id: 'R11', risk: 'Baixa qualificação técnica dos profissionais da empresa para execução do contrato.', relatedTo: 'Gestão Contratual e Solução Tecnológica', p: 10, i: 10 },
+  { id: 'R12', risk: 'Indisponibilidade de sistemas por erro no desenvolvimento ou falha na aplicação.', relatedTo: 'Gestão Contratual e Solução Tecnológica', p: 10, i: 15 },
+  { id: 'R13', risk: 'Vazamento de dados e informações pelos funcionários da contratada.', relatedTo: 'Gestão Contratual', p: 10, i: 15 },
+  { id: 'R14', risk: 'Falta de ferramentas para controle do ciclo de desenvolvimento e manutenção de software (ferramenta de testes, repositório com versionamento, ferramenta de integração contínua, ferramenta de análise de qualidade de código).', relatedTo: 'Gestão Contratual', p: 5, i: 15 },
+  { id: 'R15', risk: 'Expedição de demandas (solicitações de execução do objeto) além da capacidade de controle e de fiscalização.', relatedTo: 'Gestão Contratual', p: 15, i: 15 },
+  { id: 'R16', risk: 'Qualificação técnica e operacional insuficiente dos Fiscais Técnicos do contrato.', relatedTo: 'Gestão Contratual', p: 5, i: 15 },
+];
+
+
 // --- Main App Component ---
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -393,11 +414,25 @@ const App: React.FC = () => {
   // State for documents
   const [savedETPs, setSavedETPs] = useState<SavedDocument[]>([]);
   const [savedTRs, setSavedTRs] = useState<SavedDocument[]>([]);
+  const [savedRiskMaps, setSavedRiskMaps] = useState<SavedRiskMap[]>([]);
+  
   const [etpSectionsContent, setEtpSectionsContent] = useState<Record<string, string>>({});
   const [trSectionsContent, setTrSectionsContent] = useState<Record<string, string>>({});
+  const [riskMapContent, setRiskMapContent] = useState<Omit<SavedRiskMap, 'id' | 'name' | 'createdAt' | 'updatedAt' | 'history' | 'priority'>>({
+    processNumber: '',
+    projectName: '',
+    locationAndDate: '',
+    introduction: `O gerenciamento de riscos permite ações contínuas de planejamento, organização e controle dos recursos relacionados aos riscos que possam comprometer o sucesso da contratação, da execução do objeto e da gestão contratual.\n\nO MAPA DOS RISCOS DA CONTRATAÇÃO deve conter a identificação e a análise dos principais riscos, consistindo na compreensão da natureza e determinação do nível de risco, que corresponde à combinação do impacto e de suas probabilidades que possam comprometer a efetividade da contratação, bem como o alcance dos resultados pretendidos com a aquisição da solução.`,
+    revisions: [],
+    risks: [],
+    followUps: [],
+    preparedBy: { name: '', role: '', registration: '' },
+    approvedBy: { name: '', role: '', registration: '' },
+  });
   const [etpAttachments, setEtpAttachments] = useState<Attachment[]>([]);
   const [trAttachments, setTrAttachments] = useState<Attachment[]>([]);
   const [loadedEtpForTr, setLoadedEtpForTr] = useState<{ id: number; name: string; content: string } | null>(null);
+  const [loadedRiskMapForTr, setLoadedRiskMapForTr] = useState<{ id: number; name: string; content: string } | null>(null);
 
   // State for API and files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -407,7 +442,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
-  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, knowledgeBase: true });
+  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, riskMaps: true, knowledgeBase: true });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewContext, setPreviewContext] = useState<PreviewContext>({ type: null, id: null });
@@ -417,10 +452,11 @@ const App: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set());
   const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
   const [isNewDocModalOpen, setIsNewDocModalOpen] = useState(false);
-  const [historyModalContent, setHistoryModalContent] = useState<SavedDocument | null>(null);
+  const [historyModalContent, setHistoryModalContent] = useState<SavedDocument | SavedRiskMap | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null); // For PWA install prompt
   const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [isIntroCopied, setIsIntroCopied] = useState(false);
   
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -441,6 +477,7 @@ const App: React.FC = () => {
   const debounceTimeoutRef = useRef<number | null>(null);
   const etpContentRef = useRef(etpSectionsContent);
   const trContentRef = useRef(trSectionsContent);
+  const riskMapContentRef = useRef(riskMapContent);
 
   // Filter and Sort state
   const [priorityFilter, setPriorityFilter] = useState<'all' | Priority>('all');
@@ -454,6 +491,9 @@ const App: React.FC = () => {
   const [previewContent, setPreviewContent] = useState<{ type: 'html' | 'text'; content: string } | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isRagPreviewModalOpen, setIsRagPreviewModalOpen] = useState(false);
+
+  // Risk Map Specific State
+  const [editingRisk, setEditingRisk] = useState<RiskItem | null>(null);
 
   // Generated Content Modal State
   const [generatedContentModal, setGeneratedContentModal] = useState<{
@@ -511,17 +551,21 @@ const App: React.FC = () => {
         const etps = storage.getSavedETPs();
         setSavedETPs(etps);
         setSavedTRs(storage.getSavedTRs());
+        setSavedRiskMaps(storage.getSavedRiskMaps());
 
         const etpFormState = storage.loadFormState('etpFormState') as Record<string, string> || {};
         setEtpSectionsContent(etpFormState);
 
-        // Find the last active ETP to load its attachments
         const lastActiveEtp = etps.find(etp => JSON.stringify(etp.sections) === JSON.stringify(etpFormState));
         if (lastActiveEtp) {
             setEtpAttachments(lastActiveEtp.attachments || []);
         }
 
         setTrSectionsContent(storage.loadFormState('trFormState') as Record<string, string> || {});
+        const riskMapFormState = storage.loadFormState('riskMapFormState');
+        if (riskMapFormState) {
+          setRiskMapContent(riskMapFormState as any);
+        }
         
         const userFiles = storage.getStoredFiles();
         setUploadedFiles(userFiles);
@@ -597,6 +641,10 @@ const App: React.FC = () => {
   useEffect(() => {
       trContentRef.current = trSectionsContent;
   }, [trSectionsContent]);
+
+  useEffect(() => {
+      riskMapContentRef.current = riskMapContent;
+  }, [riskMapContent]);
   
   // Debounced save on change
   useEffect(() => {
@@ -606,13 +654,14 @@ const App: React.FC = () => {
           setAutoSaveStatus('Salvando...');
           storage.saveFormState('etpFormState', etpSectionsContent);
           storage.saveFormState('trFormState', trSectionsContent);
+          storage.saveFormState('riskMapFormState', riskMapContent);
           setTimeout(() => setAutoSaveStatus('Salvo com sucesso'), 500);
       }, 2000); // 2 seconds after user stops typing
 
       return () => {
           if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
       };
-  }, [etpSectionsContent, trSectionsContent]);
+  }, [etpSectionsContent, trSectionsContent, riskMapContent]);
 
   // Periodic save every 30 seconds
   useEffect(() => {
@@ -621,6 +670,7 @@ const App: React.FC = () => {
           // Use refs to get the latest state, avoiding stale closures
           storage.saveFormState('etpFormState', etpContentRef.current);
           storage.saveFormState('trFormState', trContentRef.current);
+          storage.saveFormState('riskMapFormState', riskMapContentRef.current);
           setTimeout(() => setAutoSaveStatus('Salvo com sucesso'), 500);
       }, 30000);
 
@@ -687,8 +737,16 @@ const App: React.FC = () => {
     }
 
     setAutoSaveStatus('A escrever...');
-    const updateFn = docType === 'etp' ? setEtpSectionsContent : setTrSectionsContent;
-    updateFn(prev => ({ ...prev, [id]: value }));
+    if (docType === 'etp') {
+      setEtpSectionsContent(prev => ({ ...prev, [id]: value }));
+    } else if (docType === 'tr') {
+      setTrSectionsContent(prev => ({ ...prev, [id]: value }));
+    }
+  };
+
+  const handleRiskMapChange = (field: keyof typeof riskMapContent, value: any) => {
+    setAutoSaveStatus('A escrever...');
+    setRiskMapContent(prev => ({ ...prev, [field]: value }));
   };
 
   const getRagContext = useCallback(() => {
@@ -731,7 +789,7 @@ const App: React.FC = () => {
         }
       });
       prompt = `Você é um especialista em planeamento de contratações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Estudo Técnico Preliminar (ETP).\n\nUse o seguinte contexto do formulário como base:\n${context}\n${ragContext}\n\nGere um texto detalhado e tecnicamente correto para a seção "${title}", utilizando a Lei 14.133/21 como referência principal e incorporando as informações do formulário e dos documentos de apoio.`;
-    } else { // TR
+    } else if (docType === 'tr') { 
       if (!loadedEtpForTr) {
         addNotification('Atenção', 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.', 'info');
         setLoadingSection(null);
@@ -744,14 +802,22 @@ const App: React.FC = () => {
         setLoadingSection(null);
         return;
       }
-      context = `--- INÍCIO DO ETP ---\n${loadedEtpForTr.content}\n--- FIM DO ETP ---`;
+      
+      let etpContext = `--- INÍCIO DO ETP DE CONTEXTO ---\n${loadedEtpForTr.content}\n--- FIM DO ETP DE CONTEXTO ---\n\n`;
+      let riskMapContext = '';
+      if (loadedRiskMapForTr) {
+          riskMapContext = `--- INÍCIO DO MAPA DE RISCOS DE CONTEXTO ---\n${loadedRiskMapForTr.content}\n--- FIM DO MAPA DE RISCOS DE CONTEXTO ---\n\n`;
+      }
+
+      let trOtherSectionsContext = '';
       allSections.forEach(sec => {
         const content = currentSections[sec.id];
         if (sec.id !== sectionId && typeof content === 'string' && content.trim()) {
-          context += `\nContexto Adicional do TR já preenchido (${sec.title}): ${content.trim()}\n`;
+          trOtherSectionsContext += `\nContexto Adicional do TR já preenchido (${sec.title}): ${content.trim()}\n`;
         }
       });
-      prompt = `Você é um especialista em licitações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Termo de Referência (TR).\n\nPara isso, utilize as seguintes fontes de informação, em ordem de prioridade:\n1. O Estudo Técnico Preliminar (ETP) base.\n2. Os documentos de apoio (RAG) fornecidos.\n3. O conteúdo já preenchido em outras seções do TR.\n\n${context}\n${ragContext}\n\nGere um texto detalhado e bem fundamentado para a seção "${title}" do TR, extraindo e inferindo as informações necessárias das fontes fornecidas.`;
+
+      prompt = `Você é um especialista em licitações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Termo de Referência (TR).\n\nPara isso, utilize as seguintes fontes de informação, em ordem de prioridade:\n1. O Estudo Técnico Preliminar (ETP) base.\n2. O Mapa de Riscos associado.\n3. Os documentos de apoio (RAG) fornecidos.\n4. O conteúdo já preenchido em outras seções do TR.\n\n${etpContext}${riskMapContext}${trOtherSectionsContext}\n${ragContext}\n\nGere um texto detalhado e bem fundamentado para a seção "${title}" do TR, extraindo e inferindo as informações necessárias das fontes fornecidas.`;
     }
     
     const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
@@ -767,6 +833,34 @@ const App: React.FC = () => {
       addNotification('Erro Inesperado', `Falha ao gerar texto: ${error.message}`, 'error');
     } finally {
         setLoadingSection(null);
+    }
+  };
+
+  const handleRewriteRiskMapIntroduction = async () => {
+    if (!riskMapContent.introduction.trim()) {
+      addNotification('Atenção', 'A introdução está vazia. Escreva algo para a IA reescrever.', 'info');
+      return;
+    }
+    setLoadingSection('riskmap-introduction');
+    const prompt = `Você é um especialista em contratações públicas. Sua tarefa é reescrever o texto a seguir para a seção "Introdução" de um Mapa de Riscos, tornando-o mais claro, profissional e conciso. Retorne apenas o texto reescrito.
+
+--- TEXTO ORIGINAL ---
+${riskMapContent.introduction}
+--- FIM DO TEXTO ORIGINAL ---
+
+--- TEXTO REESCRITO ---`;
+    try {
+      const generatedText = await callGemini(prompt, useWebSearch);
+      if (generatedText && !generatedText.startsWith("Erro:")) {
+        handleRiskMapChange('introduction', generatedText);
+        addNotification('Sucesso', 'A introdução foi reescrita pela IA.', 'success');
+      } else {
+        addNotification('Erro de Geração', generatedText, 'error');
+      }
+    } catch (error: any) {
+      addNotification('Erro Inesperado', `Falha ao gerar texto: ${error.message}`, 'error');
+    } finally {
+      setLoadingSection(null);
     }
   };
 
@@ -843,7 +937,7 @@ ${content}
     } finally {
         setIsCheckingCompliance(false);
     }
-};
+  };
 
 
   const validateForm = (docType: DocumentType, sections: Record<string, string>): string[] => {
@@ -895,70 +989,103 @@ ${content}
   };
 
   const handleSaveDocument = (docType: DocumentType) => {
-    const sections = docType === 'etp' ? etpSectionsContent : trSectionsContent;
-    
-    const validationMessages = validateForm(docType, sections);
-    if (validationMessages.length > 0) {
-        addNotification(
-            "Campos Obrigatórios",
-            `Por favor, preencha os seguintes campos antes de salvar:\n- ${validationMessages.join('\n- ')}`,
-            'error'
-        );
-        return;
-    }
+    if (docType === 'etp' || docType === 'tr') {
+      const sections = docType === 'etp' ? etpSectionsContent : trSectionsContent;
+      
+      const validationMessages = validateForm(docType, sections);
+      if (validationMessages.length > 0) {
+          addNotification(
+              "Campos Obrigatórios",
+              `Por favor, preencha os seguintes campos antes de salvar:\n- ${validationMessages.join('\n- ')}`,
+              'error'
+          );
+          return;
+      }
 
-    const name = `${docType.toUpperCase()} ${new Date().toLocaleString('pt-BR').replace(/[/:,]/g, '_')}`;
-    const now = new Date().toISOString();
-    
-    if (docType === 'etp') {
-      const newDoc: SavedDocument = {
+      const name = `${docType.toUpperCase()} ${new Date().toLocaleString('pt-BR').replace(/[/:,]/g, '_')}`;
+      const now = new Date().toISOString();
+      
+      if (docType === 'etp') {
+        const newDoc: SavedDocument = {
+          id: Date.now(),
+          name,
+          createdAt: now,
+          updatedAt: now,
+          sections: { ...sections },
+          attachments: etpAttachments,
+          history: [],
+          priority: 'medium',
+        };
+        const updatedETPs = [...savedETPs, newDoc];
+        setSavedETPs(updatedETPs);
+        storage.saveETPs(updatedETPs);
+        addNotification("Sucesso", `ETP "${name}" guardado com sucesso!`, 'success');
+      } else {
+        const newDoc: SavedDocument = {
+          id: Date.now(),
+          name,
+          createdAt: now,
+          updatedAt: now,
+          sections: { ...sections },
+          attachments: trAttachments,
+          history: [],
+          priority: 'medium',
+        };
+        const updatedTRs = [...savedTRs, newDoc];
+        setSavedTRs(updatedTRs);
+        storage.saveTRs(updatedTRs);
+        addNotification("Sucesso", `TR "${name}" guardado com sucesso!`, 'success');
+      }
+    } else if (docType === 'mapa-riscos') {
+      if (!riskMapContent.projectName.trim() || !riskMapContent.processNumber.trim()) {
+        addNotification("Campos Obrigatórios", "Por favor, preencha o Nome do Projeto e o Nº do Processo antes de salvar.", "error");
+        return;
+      }
+      const name = `Mapa de Riscos - ${riskMapContent.projectName}`;
+      const now = new Date().toISOString();
+      const newDoc: SavedRiskMap = {
         id: Date.now(),
         name,
         createdAt: now,
         updatedAt: now,
-        sections: { ...sections },
-        attachments: etpAttachments,
-        history: [],
+        ...riskMapContent,
         priority: 'medium',
       };
-      const updatedETPs = [...savedETPs, newDoc];
-      setSavedETPs(updatedETPs);
-      storage.saveETPs(updatedETPs);
-      addNotification("Sucesso", `ETP "${name}" guardado com sucesso!`, 'success');
-    } else {
-      const newDoc: SavedDocument = {
-        id: Date.now(),
-        name,
-        createdAt: now,
-        updatedAt: now,
-        sections: { ...sections },
-        attachments: trAttachments,
-        history: [],
-        priority: 'medium',
-      };
-      const updatedTRs = [...savedTRs, newDoc];
-      setSavedTRs(updatedTRs);
-      storage.saveTRs(updatedTRs);
-      addNotification("Sucesso", `TR "${name}" guardado com sucesso!`, 'success');
+      const updatedMaps = [...savedRiskMaps, newDoc];
+      setSavedRiskMaps(updatedMaps);
+      storage.saveRiskMaps(updatedMaps);
+      addNotification("Sucesso", `Mapa de Riscos "${name}" salvo com sucesso!`, 'success');
     }
   };
   
   const handleLoadDocument = (docType: DocumentType, id: number) => {
-    const docs = docType === 'etp' ? savedETPs : savedTRs;
-    const docToLoad = docs.find(doc => doc.id === id);
-    if(docToLoad) {
-      if (docType === 'etp') {
-        setEtpSectionsContent(docToLoad.sections);
-        setEtpAttachments(docToLoad.attachments || []);
-        storage.saveFormState('etpFormState', docToLoad.sections);
-      } else {
-        setTrSectionsContent(docToLoad.sections);
-        setTrAttachments(docToLoad.attachments || []);
-        storage.saveFormState('trFormState', docToLoad.sections);
+    if (docType === 'etp' || docType === 'tr') {
+      const docs = docType === 'etp' ? savedETPs : savedTRs;
+      const docToLoad = docs.find(doc => doc.id === id);
+      if(docToLoad) {
+        if (docType === 'etp') {
+          setEtpSectionsContent(docToLoad.sections);
+          setEtpAttachments(docToLoad.attachments || []);
+          storage.saveFormState('etpFormState', docToLoad.sections);
+        } else {
+          setTrSectionsContent(docToLoad.sections);
+          setTrAttachments(docToLoad.attachments || []);
+          storage.saveFormState('trFormState', docToLoad.sections);
+        }
+        addNotification('Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`, 'success');
+        setActiveView(docType);
+        if (window.innerWidth < 768) setIsSidebarOpen(false);
       }
-      addNotification('Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`, 'success');
-      setActiveView(docType);
-      if (window.innerWidth < 768) setIsSidebarOpen(false);
+    } else if (docType === 'mapa-riscos') {
+      const docToLoad = savedRiskMaps.find(doc => doc.id === id);
+      if (docToLoad) {
+        const { id, name, createdAt, updatedAt, history, priority, ...content } = docToLoad;
+        setRiskMapContent(content);
+        storage.saveFormState('riskMapFormState', content);
+        addNotification('Documento Carregado', `O Mapa de Riscos "${docToLoad.name}" foi carregado.`, 'success');
+        setActiveView(docType);
+        if (window.innerWidth < 768) setIsSidebarOpen(false);
+      }
     }
   };
 
@@ -967,15 +1094,19 @@ ${content}
       const updated = savedETPs.filter(doc => doc.id !== id);
       setSavedETPs(updated);
       storage.saveETPs(updated);
-    } else {
+    } else if (docType === 'tr') {
       const updated = savedTRs.filter(doc => doc.id !== id);
       setSavedTRs(updated);
       storage.saveTRs(updated);
+    } else if (docType === 'mapa-riscos') {
+      const updated = savedRiskMaps.filter(doc => doc.id !== id);
+      setSavedRiskMaps(updated);
+      storage.saveRiskMaps(updated);
     }
     addNotification('Sucesso', `O documento foi apagado.`, 'success');
   };
 
-  const handleStartEditing = (type: DocumentType, doc: SavedDocument) => {
+  const handleStartEditing = (type: DocumentType, doc: SavedDocument | SavedRiskMap) => {
     setEditingDoc({ type, id: doc.id, name: doc.name, priority: doc.priority || 'medium' });
   };
 
@@ -989,28 +1120,24 @@ ${content}
         return;
     }
 
-    const updateDocs = (docs: SavedDocument[]) => docs.map(doc =>
-        doc.id === id ? { ...doc, name: newName, priority: priority } : doc
-    );
-
     if (type === 'etp') {
-        const updated = updateDocs(savedETPs);
-        setSavedETPs(updated);
-        storage.saveETPs(updated);
-    } else { // type === 'tr'
-        const updated = updateDocs(savedTRs);
-        setSavedTRs(updated);
-        storage.saveTRs(updated);
+      const updated = savedETPs.map(doc => doc.id === id ? { ...doc, name: newName, priority: priority } : doc);
+      setSavedETPs(updated);
+      storage.saveETPs(updated);
+    } else if (type === 'tr') {
+      const updated = savedTRs.map(doc => doc.id === id ? { ...doc, name: newName, priority: priority } : doc);
+      setSavedTRs(updated);
+      storage.saveTRs(updated);
+    } else if (type === 'mapa-riscos') {
+      const updated = savedRiskMaps.map(doc => doc.id === id ? { ...doc, name: newName, priority: priority } : doc);
+      setSavedRiskMaps(updated);
+      storage.saveRiskMaps(updated);
     }
 
     setEditingDoc(null);
   };
 
   const handleEditorBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    // When focus moves from an element inside the div to another element inside the same div,
-    // relatedTarget will be one of the children.
-    // If focus moves outside the div, relatedTarget will be null or an element outside the div.
-    // `contains` will correctly handle both cases.
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       handleUpdateDocumentDetails();
     }
@@ -1120,6 +1247,29 @@ ${content}
     }
   };
 
+  const handleLoadRiskMapForTr = (riskMapId: string) => {
+    if (riskMapId === "") {
+        setLoadedRiskMapForTr(null);
+        return;
+    }
+    const riskMap = savedRiskMaps.find(m => m.id === parseInt(riskMapId, 10));
+    if (riskMap) {
+        let content = `## Contexto do Mapa de Riscos: ${riskMap.name}\n`;
+        content += `### Projeto: ${riskMap.projectName || 'Não informado'}\n`;
+        content += `### Processo nº: ${riskMap.processNumber || 'Não informado'}\n\n`;
+        content += `### Riscos Identificados:\n`;
+        riskMap.risks.forEach(risk => {
+            content += `- **Risco ${risk.id}:** ${risk.risk}\n`;
+            content += `  - Relacionado a: ${risk.relatedTo}\n`;
+            content += `  - Probabilidade: ${risk.probabilityText} (Valor: ${risk.probability})\n`;
+            content += `  - Impacto: ${risk.impactText} (Valor: ${risk.impact})\n`;
+            content += `  - Tratamento Proposto: ${risk.treatment}\n\n`;
+        });
+        setLoadedRiskMapForTr({ id: riskMap.id, name: riskMap.name, content });
+        addNotification("Contexto Carregado", `O Mapa de Riscos "${riskMap.name}" foi carregado como contexto para o TR.`, 'info');
+    }
+  };
+
   const handleImportEtpAttachments = () => {
     if (!loadedEtpForTr) {
       addNotification('Aviso', 'Nenhum ETP carregado para importar anexos.', 'info');
@@ -1216,7 +1366,14 @@ Seja técnico, objetivo e forneça uma análise que agregue valor prático ao pl
   };
 
   const handleOpenEditModal = (docType: DocumentType, sectionId: string, title: string) => {
-    const content = (docType === 'etp' ? etpSectionsContent : trSectionsContent)[sectionId] || '';
+    let content = '';
+    if (docType === 'etp') {
+      content = etpSectionsContent[sectionId] || '';
+    } else if (docType === 'tr') {
+      content = trSectionsContent[sectionId] || '';
+    } else if (docType === 'mapa-riscos' && sectionId === 'introduction') {
+      content = riskMapContent.introduction;
+    }
     setEditingContent({ docType, sectionId, title, text: content });
     setIsEditModalOpen(true);
   };
@@ -1231,7 +1388,11 @@ Seja técnico, objetivo e forneça uma análise que agregue valor prático ao pl
   const handleSaveChanges = () => {
     if (!editingContent) return;
     const { docType, sectionId, text } = editingContent;
-    handleSectionChange(docType, sectionId, text);
+    if (docType === 'etp' || docType === 'tr') {
+      handleSectionChange(docType, sectionId, text);
+    } else if (docType === 'mapa-riscos' && sectionId === 'introduction') {
+      handleRiskMapChange('introduction', text);
+    }
     closeEditModal();
   };
   
@@ -1283,13 +1444,25 @@ Solicitação do usuário: "${refinePrompt}"
         setEtpSectionsContent({});
         setEtpAttachments([]);
         storage.saveFormState('etpFormState', {});
-    } else {
+    } else if (docType === 'tr') {
         setTrSectionsContent({});
         setTrAttachments([]);
         setLoadedEtpForTr(null);
+        setLoadedRiskMapForTr(null);
         const etpSelector = document.getElementById('etp-selector') as HTMLSelectElement;
         if (etpSelector) etpSelector.value = "";
+        const riskMapSelector = document.getElementById('riskmap-selector') as HTMLSelectElement;
+        if (riskMapSelector) riskMapSelector.value = "";
         storage.saveFormState('trFormState', {});
+    } else if (docType === 'mapa-riscos') {
+        setRiskMapContent({
+            processNumber: '', projectName: '', locationAndDate: '',
+            introduction: `O gerenciamento de riscos permite ações contínuas de planejamento, organização e controle dos recursos relacionados aos riscos que possam comprometer o sucesso da contratação, da execução do objeto e da gestão contratual.\n\nO MAPA DOS RISCOS DA CONTRATAÇÃO deve conter a identificação e a análise dos principais riscos, consistindo na compreensão da natureza e determinação do nível de risco, que corresponde à combinação do impacto e de suas probabilidades que possam comprometer a efetividade da contratação, bem como o alcance dos resultados pretendidos com a aquisição da solução.`,
+            revisions: [], risks: [], followUps: [],
+            preparedBy: { name: '', role: '', registration: '' },
+            approvedBy: { name: '', role: '', registration: '' },
+        });
+        storage.saveFormState('riskMapFormState', {});
     }
     addNotification('Formulário Limpo', `O formulário do ${docType.toUpperCase()} foi limpo.`, 'info');
   }, [addNotification]);
@@ -1513,7 +1686,7 @@ Solicitação do usuário: "${refinePrompt}"
     setValidationErrors(new Set());
   }, []);
 
-  const toggleSidebarSection = (section: 'etps' | 'trs' | 'knowledgeBase') => {
+  const toggleSidebarSection = (section: 'etps' | 'trs' | 'riskMaps' | 'knowledgeBase') => {
     setOpenSidebarSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
   
@@ -1535,7 +1708,7 @@ Solicitação do usuário: "${refinePrompt}"
           setEtpSectionsContent(template.sections);
           setEtpAttachments([]);
           storage.saveFormState('etpFormState', template.sections);
-      } else {
+      } else if (template.type === 'tr') {
           setTrSectionsContent(template.sections);
           setTrAttachments([]);
           setLoadedEtpForTr(null);
@@ -1550,7 +1723,7 @@ Solicitação do usuário: "${refinePrompt}"
       );
   }, [switchView, addNotification]);
 
-  const displayDocumentHistory = (doc: SavedDocument) => {
+  const displayDocumentHistory = (doc: SavedDocument | SavedRiskMap) => {
     setHistoryModalContent(doc);
   };
   
@@ -1601,34 +1774,32 @@ Solicitação do usuário: "${refinePrompt}"
   };
 
   const priorityFilteredDocs = useMemo(() => {
-    const filterByPriority = (docs: SavedDocument[]) => {
-      if (priorityFilter === 'all') {
-        return docs;
-      }
+    const filterByPriority = <T extends { priority?: Priority }>(docs: T[]) => {
+      if (priorityFilter === 'all') return docs;
       return docs.filter(doc => doc.priority === priorityFilter);
     };
     return {
       etps: filterByPriority(savedETPs),
       trs: filterByPriority(savedTRs),
+      riskMaps: filterByPriority(savedRiskMaps),
     };
-  }, [savedETPs, savedTRs, priorityFilter]);
+  }, [savedETPs, savedTRs, savedRiskMaps, priorityFilter]);
 
   const searchedDocs = useMemo(() => {
-    const filterBySearch = (docs: SavedDocument[]) => {
-      if (!searchTerm) {
-        return docs;
-      }
+    const filterBySearch = <T extends { name: string }>(docs: T[]) => {
+      if (!searchTerm) return docs;
       const lowercasedSearchTerm = searchTerm.toLowerCase();
       return docs.filter(doc => doc.name.toLowerCase().includes(lowercasedSearchTerm));
     };
     return {
       etps: filterBySearch(priorityFilteredDocs.etps),
       trs: filterBySearch(priorityFilteredDocs.trs),
+      riskMaps: filterBySearch(priorityFilteredDocs.riskMaps),
     };
   }, [priorityFilteredDocs, searchTerm]);
 
-  const { displayedETPs, displayedTRs } = useMemo(() => {
-    const sortDocs = (docs: SavedDocument[]) => {
+  const { displayedETPs, displayedTRs, displayedRiskMaps } = useMemo(() => {
+    const sortDocs = <T extends { name: string, updatedAt: string }>(docs: T[]) => {
       return [...docs].sort((a, b) => {
         if (sortOrder === 'name') {
           return a.name.localeCompare(b.name);
@@ -1642,10 +1813,24 @@ Solicitação do usuário: "${refinePrompt}"
     
     return {
       displayedETPs: sortDocs(searchedDocs.etps),
-      displayedTRs: sortDocs(searchedDocs.trs)
+      displayedTRs: sortDocs(searchedDocs.trs),
+      displayedRiskMaps: sortDocs(searchedDocs.riskMaps),
     };
   }, [searchedDocs, sortOrder]);
   
+  const getRiskLevelClass = (level: number) => {
+    if (level <= 50) return 'bg-green-100 text-green-800 border-green-200'; // Baixo
+    if (level <= 150) return 'bg-yellow-100 text-yellow-800 border-yellow-200'; // Médio
+    return 'bg-red-100 text-red-800 border-red-200'; // Alto
+  };
+
+  const getRiskLevelClassExample = (level: number) => {
+    if (level <= 75) return 'bg-green-400 text-green-900 font-bold'; // Baixo/Verde
+    if (level <= 150) return 'bg-yellow-400 text-yellow-900 font-bold'; // Médio/Amarelo
+    return 'bg-red-500 text-white font-bold'; // Alto/Vermelho
+  };
+
+
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -1765,7 +1950,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                     <Icon name={openSidebarSections.etps ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
                   </button>
-                  <div className={`transition-all duration-500 ease-in-out ${openSidebarSections.etps ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.etps ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                     <div className="space-y-2">
                       {displayedETPs.length > 0 ? (
                         <ul className="space-y-2">
@@ -1855,7 +2040,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                     <Icon name={openSidebarSections.trs ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
                   </button>
-                   <div className={`transition-all duration-500 ease-in-out ${openSidebarSections.trs ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                   <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.trs ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                     <div className="space-y-2">
                       {displayedTRs.length > 0 ? (
                         <ul className="space-y-2">
@@ -1934,6 +2119,64 @@ Solicitação do usuário: "${refinePrompt}"
                       ) : <p className="text-sm text-slate-400 italic px-2">Nenhum TR corresponde ao filtro.</p>}
                     </div>
                    </div>
+                </div>
+
+                {/* Accordion Section: Mapas de Risco */}
+                <div className="py-1">
+                  <button onClick={() => toggleSidebarSection('riskMaps')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-yellow-50 transition-colors">
+                    <div className="flex items-center">
+                        <Icon name="shield-alt" className="text-yellow-500 w-5 text-center" />
+                        <h3 className="text-sm font-semibold text-yellow-600 uppercase tracking-wider ml-2">Mapas de Risco</h3>
+                    </div>
+                    <Icon name={openSidebarSections.riskMaps ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
+                  </button>
+                  <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.riskMaps ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                    <div className="space-y-2">
+                        {displayedRiskMaps.length > 0 ? (
+                          <ul className="space-y-2">
+                            {displayedRiskMaps.map(map => (
+                              <li key={map.id} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                  {editingDoc?.type === 'mapa-riscos' && editingDoc?.id === map.id ? (
+                                      <div className="w-full flex items-center gap-2" onBlur={handleEditorBlur}>
+                                        {/* Editor inline para Mapa de Riscos */}
+                                      </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between w-full gap-2">
+                                        <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                                            <PriorityIndicator priority={map.priority} />
+                                            <span className="text-sm font-medium text-slate-700 truncate" title={map.name}>{map.name}</span>
+                                        </div>
+                                        <div className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0" title={map.updatedAt ? `Atualizado em: ${new Date(map.updatedAt).toLocaleString('pt-BR')}` : ''}>
+                                            {map.updatedAt && <span>{new Date(map.updatedAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}</span>}
+                                        </div>
+                                        <div className="relative flex-shrink-0">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openActionMenu?.id === map.id ? setOpenActionMenu(null) : setOpenActionMenu({ type: 'mapa-riscos', id: map.id });
+                                                }}
+                                                className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-yellow-600 rounded-full hover:bg-slate-200 transition-colors"
+                                                title="Mais opções"
+                                            >
+                                                <Icon name="ellipsis-v" />
+                                            </button>
+                                            {openActionMenu?.type === 'mapa-riscos' && openActionMenu?.id === map.id && (
+                                                <div ref={actionMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-50 py-1 animate-scale-in">
+                                                    <ul>
+                                                      <li><button onClick={() => { handleLoadDocument('mapa-riscos', map.id); setOpenActionMenu(null); }} className="flex items-center w-full px-4 py-2 text-sm text-left text-slate-700 hover:bg-slate-100"><Icon name="upload" className="mr-3 w-4 text-center" /> Carregar</button></li>
+                                                      <li><button onClick={() => { handleDeleteDocument('mapa-riscos', map.id); setOpenActionMenu(null); }} className="flex items-center w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-red-50"><Icon name="trash" className="mr-3 w-4 text-center" /> Apagar</button></li>
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                  )}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : <p className="text-sm text-slate-400 italic px-2">Nenhum Mapa de Risco corresponde ao filtro.</p>}
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Accordion Section: Base de Conhecimento */}
@@ -2042,6 +2285,16 @@ Solicitação do usuário: "${refinePrompt}"
                         Gerador de ETP
                       </button>
                       <button
+                        onClick={() => switchView('mapa-riscos')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                          activeView === 'mapa-riscos'
+                            ? 'border-yellow-600 text-yellow-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        Mapa de Riscos
+                      </button>
+                      <button
                         onClick={() => switchView('tr')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
                            activeView === 'tr'
@@ -2053,7 +2306,7 @@ Solicitação do usuário: "${refinePrompt}"
                       </button>
                     </nav>
                      <h2 className="md:hidden text-2xl font-bold text-slate-800 py-4">
-                        {activeView === 'etp' ? 'Gerador de ETP' : 'Gerador de TR'}
+                        {activeView === 'etp' ? 'Gerador de ETP' : activeView === 'mapa-riscos' ? 'Mapa de Riscos' : 'Gerador de TR'}
                     </h2>
                   </div>
                 </div>
@@ -2140,26 +2393,196 @@ Solicitação do usuário: "${refinePrompt}"
                 </div>
             </div>
 
+            <div className={`${activeView === 'mapa-riscos' ? 'block' : 'hidden'}`}>
+               <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">Dados Gerais da Contratação</h2>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label htmlFor="riskmap-processNumber" className="block text-sm font-medium text-slate-700 mb-1">Processo Administrativo nº</label>
+                        <input id="riskmap-processNumber" type="text" value={riskMapContent.processNumber} onChange={e => handleRiskMapChange('processNumber', e.target.value)} placeholder="<XXXXXXXX>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
+                    </div>
+                    <div>
+                        <label htmlFor="riskmap-projectName" className="block text-sm font-medium text-slate-700 mb-1">Nome do Projeto / Solução</label>
+                        <input id="riskmap-projectName" type="text" value={riskMapContent.projectName} onChange={e => handleRiskMapChange('projectName', e.target.value)} placeholder="<Nome do Projeto / Solução>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
+                    </div>
+                    <div className="md:col-span-2">
+                        <label htmlFor="riskmap-locationAndDate" className="block text-sm font-medium text-slate-700 mb-1">Local e Data</label>
+                        <input id="riskmap-locationAndDate" type="text" value={riskMapContent.locationAndDate} onChange={e => handleRiskMapChange('locationAndDate', e.target.value)} placeholder="<Local>, <mês> de <ano>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
+                    </div>
+                 </div>
+               </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                  <div className="flex justify-between items-center mb-4 flex-wrap gap-y-3">
+                      <h2 className="text-xl font-bold text-slate-800">1 - INTRODUÇÃO</h2>
+                      <div className="w-full sm:w-auto flex items-stretch gap-2 flex-wrap">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(riskMapContent.introduction);
+                              setIsIntroCopied(true);
+                              setTimeout(() => setIsIntroCopied(false), 2000);
+                            }}
+                            className={`flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold rounded-lg transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0 ${isIntroCopied ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                            title={isIntroCopied ? 'Copiado!' : 'Copiar'}
+                          >
+                            <Icon name={isIntroCopied ? 'check' : 'copy'} className="mr-2" />
+                            <span>{isIntroCopied ? 'Copiado!' : 'Copiar'}</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal('mapa-riscos', 'introduction', 'Introdução')}
+                            className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0"
+                            title="Editar e Refinar"
+                          >
+                            <Icon name="pencil-alt" className="mr-2" />
+                            <span>Editar/Refinar</span>
+                          </button>
+                          <button
+                            onClick={handleRewriteRiskMapIntroduction}
+                            disabled={loadingSection === 'riskmap-introduction'}
+                            className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[calc(50%-0.25rem)] sm:min-w-0"
+                          >
+                            <Icon name={loadingSection === 'riskmap-introduction' ? 'spinner' : 'wand-magic-sparkles'} className={`mr-2 ${loadingSection === 'riskmap-introduction' ? 'fa-spin' : ''}`} />
+                            <span>{loadingSection === 'riskmap-introduction' ? 'A gerar...' : 'Gerar com IA'}</span>
+                          </button>
+                      </div>
+                  </div>
+                  <textarea value={riskMapContent.introduction} onChange={e => handleRiskMapChange('introduction', e.target.value)} className="w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors border-slate-200 focus:ring-yellow-500" />
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                  <h2 className="text-xl font-bold text-slate-800 mb-2">2 - IDENTIFICAÇÃO E ANÁLISE DOS PRINCIPAIS RISCOS</h2>
+                  <p className="text-sm text-slate-600 mb-4">A tabela a seguir apresenta uma síntese dos riscos identificados e classificados neste documento.</p>
+                   <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-slate-500">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                            <tr>
+                                <th scope="col" className="px-4 py-3">ID</th>
+                                <th scope="col" className="px-4 py-3">Risco</th>
+                                <th scope="col" className="px-4 py-3">Relacionado a</th>
+                                <th scope="col" className="px-4 py-3 text-center">P</th>
+                                <th scope="col" className="px-4 py-3 text-center">I</th>
+                                <th scope="col" className="px-4 py-3 text-center">Nível</th>
+                                <th scope="col" className="px-4 py-3 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                          {/* Tabela de Riscos aqui */}
+                        </tbody>
+                    </table>
+                  </div>
+
+                  <p className="text-sm text-slate-500 italic mt-6 mb-4">
+                    {"<A seguir encontra-se um exemplo de relação de riscos, não exaustiva, de uma contratação de serviços de desenvolvimento e manutenção de software.>"}
+                  </p>
+                  <div className="overflow-x-auto border rounded-lg">
+                     <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                           <tr>
+                                <th className="px-4 py-3">Id</th>
+                                <th className="px-4 py-3">Risco</th>
+                                <th className="px-4 py-3">Relacionado ao(à):</th>
+                                <th className="px-4 py-3 text-center">P</th>
+                                <th className="px-4 py-3 text-center">I</th>
+                                <th className="px-4 py-3 text-center">Nível de Risco (P x I)</th>
+                           </tr>
+                        </thead>
+                        <tbody className="bg-white">
+                           {exampleRisks.map(risk => (
+                            <tr key={risk.id} className="border-b last:border-b-0">
+                                <td className="px-4 py-2 font-medium text-slate-900">{risk.id}</td>
+                                <td className="px-4 py-2">{risk.risk}</td>
+                                <td className="px-4 py-2">{risk.relatedTo}</td>
+                                <td className="px-4 py-2 text-center">{risk.p}</td>
+                                <td className="px-4 py-2 text-center">{risk.i}</td>
+                                <td className={`px-4 py-2 text-center ${getRiskLevelClassExample(risk.p * risk.i)}`}>
+                                  {risk.p * risk.i}
+                                </td>
+                            </tr>
+                           ))}
+                        </tbody>
+                     </table>
+                  </div>
+
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                   <h2 className="text-xl font-bold text-slate-800 mb-2">3 - AVALIAÇÃO E TRATAMENTO DOS RISCOS IDENTIFICADOS</h2>
+                   <div className="space-y-2 text-sm text-slate-500 italic">
+                      <p>{"<Riscos do processo de contratação (planejamento, seleção de fornecedores e gestão do contrato), ou qualquer outro risco relevante relacionado à solução identificados>."}</p>
+                      <p>{"<Para o tratamento de riscos, as seguintes opções podem ser selecionadas: evitar, reduzir ou mitigar, transferir ou compartilhar, e aceitar ou tolerar o risco>."}</p>
+                      <p>{"<A seguir são apresentados alguns riscos meramente exemplificativos>."}</p>
+                   </div>
+                   <p className="text-slate-600 mt-4">Clique no botão <Icon name="tasks" /> de um risco na tabela acima para detalhar seu tratamento, incluindo danos, ações preventivas e de contingência.</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                  <h2 className="text-xl font-bold text-slate-800 mb-2">4 - ACOMPANHAMENTO DAS AÇÕES DE TRATAMENTO DE RISCOS</h2>
+                  <p className="text-sm text-slate-500 italic mb-4">{"<Espaço para registro e acompanhamento das ações de tratamento dos riscos, que poderá conter eventos relevantes relacionados ao gerenciamento de riscos, conforme exemplo abaixo>."}</p>
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-sm text-left text-slate-500">
+                        {/* Tabela de Acompanhamento */}
+                     </table>
+                   </div>
+                </div>
+
+                {/* Salvar Mapa de Riscos */}
+                 <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
+                    <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
+                        <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
+                        <button onClick={handleClearForm('mapa-riscos')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
+                            <Icon name="eraser" /> Limpar
+                        </button>
+                        <button onClick={() => handleSaveDocument('mapa-riscos')} className="bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-yellow-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                            <Icon name="save" /> Salvar Mapa
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div className={`${activeView === 'tr' ? 'block' : 'hidden'}`}>
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                    <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">1. Carregar ETP para Contexto</label>
-                    <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) salvo para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
-                    <select
-                        id="etp-selector"
-                        onChange={(e) => handleLoadEtpForTr(e.target.value)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        defaultValue=""
-                    >
-                        <option value="">-- Selecione um ETP --</option>
-                        {savedETPs.map(etp => (
-                            <option key={etp.id} value={etp.id}>{etp.name}</option>
-                        ))}
-                    </select>
-                    {loadedEtpForTr && (
-                        <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                            <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado com sucesso.</p>
+                    <h2 className="text-lg font-semibold text-slate-700 mb-3">Carregar Documentos para Contexto</h2>
+                    <p className="text-sm text-slate-500 mb-4">Selecione documentos salvos para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="etp-selector" className="block text-sm font-medium text-slate-600 mb-1">1. Estudo Técnico Preliminar (ETP)</label>
+                            <select
+                                id="etp-selector"
+                                onChange={(e) => handleLoadEtpForTr(e.target.value)}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                defaultValue=""
+                            >
+                                <option value="">-- Selecione um ETP --</option>
+                                {savedETPs.map(etp => (
+                                    <option key={etp.id} value={etp.id}>{etp.name}</option>
+                                ))}
+                            </select>
+                            {loadedEtpForTr && (
+                                <div className="mt-2 p-2 text-xs bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
+                                    <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado.</p>
+                                </div>
+                            )}
                         </div>
-                    )}
+                        <div>
+                            <label htmlFor="riskmap-selector" className="block text-sm font-medium text-slate-600 mb-1">2. Mapa de Riscos</label>
+                            <select
+                                id="riskmap-selector"
+                                onChange={(e) => handleLoadRiskMapForTr(e.target.value)}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                                defaultValue=""
+                            >
+                                <option value="">-- Selecione um Mapa de Risco --</option>
+                                {savedRiskMaps.map(map => (
+                                    <option key={map.id} value={map.id}>{map.name}</option>
+                                ))}
+                            </select>
+                             {loadedRiskMapForTr && (
+                                <div className="mt-2 p-2 text-xs bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
+                                    <p className="font-semibold">Mapa "{loadedRiskMapForTr.name}" carregado.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {trSections.map(section => {
@@ -2552,15 +2975,19 @@ Solicitação do usuário: "${refinePrompt}"
       className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around bg-white/80 p-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] backdrop-blur-md border-t border-slate-200/80 z-20"
       style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
     >
-        <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center rounded-full w-24 h-14 transition-colors ${activeView === 'etp' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
+        <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center rounded-full w-20 h-14 transition-colors ${activeView === 'etp' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
             <Icon name="file-alt" className="text-2xl mb-0.5" />
             <span className="text-xs font-semibold">ETP</span>
         </button>
-        <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center rounded-full w-24 h-14 transition-colors ${activeView === 'tr' ? 'bg-purple-50 text-purple-600' : 'text-slate-500 hover:bg-slate-100'}`}>
+        <button onClick={() => switchView('mapa-riscos')} className={`flex flex-col items-center justify-center rounded-full w-20 h-14 transition-colors ${activeView === 'mapa-riscos' ? 'bg-yellow-50 text-yellow-600' : 'text-slate-500 hover:bg-slate-100'}`}>
+            <Icon name="shield-alt" className="text-2xl mb-0.5" />
+            <span className="text-xs font-semibold">Riscos</span>
+        </button>
+        <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center rounded-full w-20 h-14 transition-colors ${activeView === 'tr' ? 'bg-purple-50 text-purple-600' : 'text-slate-500 hover:bg-slate-100'}`}>
             <Icon name="gavel" className="text-2xl mb-0.5" />
             <span className="text-xs font-semibold">TR</span>
         </button>
-        <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center rounded-full w-24 h-14 text-slate-500 hover:bg-slate-100 transition-colors">
+        <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center rounded-full w-20 h-14 text-slate-500 hover:bg-slate-100 transition-colors">
             <Icon name="bars" className="text-2xl mb-0.5" />
             <span className="text-xs font-semibold">Menu</span>
         </button>
