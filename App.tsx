@@ -1765,7 +1765,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                     <Icon name={openSidebarSections.etps ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
                   </button>
-                  <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.etps ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-500 ease-in-out ${openSidebarSections.etps ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                     <div className="space-y-2">
                       {displayedETPs.length > 0 ? (
                         <ul className="space-y-2">
@@ -1855,7 +1855,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                     <Icon name={openSidebarSections.trs ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
                   </button>
-                   <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.trs ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                   <div className={`transition-all duration-500 ease-in-out ${openSidebarSections.trs ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                     <div className="space-y-2">
                       {displayedTRs.length > 0 ? (
                         <ul className="space-y-2">
