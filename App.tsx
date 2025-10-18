@@ -2449,7 +2449,7 @@ Solicitação do usuário: "${refinePrompt}"
       </Modal>
 
     {/* Floating Action Button for Mobile */}
-    <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom) + 1.5rem)' }}>
+    <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(9rem + env(safe-area-inset-bottom) + 1.5rem)' }}>
       <button
         onClick={() => setIsNewDocModalOpen(true)}
         className="bg-pink-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-pink-700 transition-transform transform hover:scale-110"
