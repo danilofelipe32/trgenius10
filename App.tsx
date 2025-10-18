@@ -96,7 +96,7 @@ const Notification: React.FC<NotificationProps> = ({ notification, onClose }) =>
 const ContentRenderer: React.FC<{ text: string | null; className?: string }> = ({ text, className }) => {
     if (!text) return null;
 
-    const parseInline = (line: string): React.ReactNode => {
+    const parseInline = (line: string): React.ReactNode[] => {
         const nodes: React.ReactNode[] = [];
         let lastIndex = 0;
         // Regex for Markdown links, standalone URLs, and bold text
@@ -127,7 +127,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             nodes.push(line.substring(lastIndex));
         }
 
-        return nodes.map((node, i) => <React.Fragment key={i}>{node}</React.Fragment>);
+        return nodes;
     };
 
     const elements: React.ReactNode[] = [];
@@ -142,7 +142,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
             }
         }
         listItems = [];
