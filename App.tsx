@@ -142,7 +142,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -2486,16 +2486,19 @@ Solicitação do usuário: "${refinePrompt}"
     </div>
 
     {/* Mobile Bottom Navigation */}
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-slate-200 flex justify-around z-20" style={{ height: 'calc(4.5rem + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center h-full px-4 transition-colors ${activeView === 'etp' ? 'text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>
+    <div 
+      className="md:hidden fixed left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-white/80 p-1.5 shadow-lg backdrop-blur-md border border-slate-200/80 z-20"
+      style={{ bottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
+    >
+        <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center rounded-full w-24 h-14 transition-colors ${activeView === 'etp' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
             <Icon name="file-alt" className="text-2xl mb-0.5" />
             <span className="text-xs font-semibold">ETP</span>
         </button>
-        <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center h-full px-4 transition-colors ${activeView === 'tr' ? 'text-purple-600' : 'text-slate-500 hover:text-purple-600'}`}>
+        <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center rounded-full w-24 h-14 transition-colors ${activeView === 'tr' ? 'bg-purple-50 text-purple-600' : 'text-slate-500 hover:bg-slate-100'}`}>
             <Icon name="gavel" className="text-2xl mb-0.5" />
             <span className="text-xs font-semibold">TR</span>
         </button>
-        <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center h-full px-4 text-slate-500 hover:text-blue-600 transition-colors">
+        <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center rounded-full w-24 h-14 text-slate-500 hover:bg-slate-100 transition-colors">
             <Icon name="bars" className="text-2xl mb-0.5" />
             <span className="text-xs font-semibold">Menu</span>
         </button>
