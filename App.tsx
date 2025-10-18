@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, Attachment, DocumentVersion, Priority, Template, Notification as NotificationType, SavedRiskMap, RiskRevision, RiskItem, RiskAction, RiskFollowUp } from './types';
 import * as storage from './services/storageService';
@@ -1872,6 +1870,22 @@ Solicitação do usuário: "${refinePrompt}"
       setEditingFollowUp(null);
   };
 
+  const handleEditingRiskChange = (field: keyof RiskItem, value: any) => {
+    setEditingRisk(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleEditingRiskNumberChange = (field: 'probability' | 'impact', value: string) => {
+    const numValue = Number(value);
+    const textMap: Record<number, string> = { 5: 'Baixo', 10: 'Médio', 15: 'Alto' };
+    const textField = field === 'probability' ? 'probabilityText' : 'impactText';
+    
+    setEditingRisk(prev => prev ? { 
+      ...prev, 
+      [field]: numValue,
+      [textField]: textMap[numValue] || ''
+    } : null);
+  };
+
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
@@ -2927,7 +2941,7 @@ Solicitação do usuário: "${refinePrompt}"
         title={`Histórico de: ${historyModalContent?.name}`}
         maxWidth="max-w-6xl"
       >
-        {historyModalContent && <HistoryViewer document={historyModalContent} allSections={[...etpSections, ...trSections]} />}
+        {historyModalContent && 'sections' in historyModalContent && <HistoryViewer document={historyModalContent} allSections={[...etpSections, ...trSections]} />}
       </Modal>
 
     <Modal isOpen={isNewDocModalOpen} onClose={() => setIsNewDocModalOpen(false)} title="Criar Novo Documento" maxWidth="max-w-4xl">
@@ -3122,7 +3136,50 @@ Solicitação do usuário: "${refinePrompt}"
       </Modal>
 
       <Modal isOpen={!!editingRisk} onClose={() => setEditingRisk(null)} title={riskMapContent.risks.some(r => r.id === editingRisk?.id) ? 'Editar Risco' : 'Adicionar Risco'} maxWidth="max-w-4xl">
-         {/* Conteúdo do Modal de Riscos aqui */}
+         {editingRisk && (
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">ID do Risco</label>
+                    <input type="text" value={editingRisk.id} disabled className="mt-1 block w-full rounded-md border-slate-300 bg-slate-100 shadow-sm"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Risco</label>
+                    <textarea value={editingRisk.risk} onChange={e => handleEditingRiskChange('risk', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500" rows={3}/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Relacionado a</label>
+                    <select value={editingRisk.relatedTo} onChange={e => handleEditingRiskChange('relatedTo', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
+                        <option>Planejamento da Contratação</option>
+                        <option>Seleção do Fornecedor</option>
+                        <option>Gestão Contratual</option>
+                        <option>Gestão Contratual e Solução Tecnológica</option>
+                    </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700">Probabilidade (P)</label>
+                        <select value={editingRisk.probability} onChange={e => handleEditingRiskNumberChange('probability', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
+                            <option value={5}>5 (Baixa)</option>
+                            <option value={10}>10 (Média)</option>
+                            <option value={15}>15 (Alta)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700">Impacto (I)</label>
+                        <select value={editingRisk.impact} onChange={e => handleEditingRiskNumberChange('impact', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
+                            <option value={5}>5 (Baixo)</option>
+                            <option value={10}>10 (Médio)</option>
+                            <option value={15}>15 (Alto)</option>
+                        </select>
+                    </div>
+                </div>
+                {/* Campos de análise detalhada podem ser adicionados aqui no futuro */}
+                <div className="flex justify-end gap-3 pt-4">
+                    <button onClick={() => setEditingRisk(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button onClick={handleSaveRisk} className="bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Salvar Risco</button>
+                </div>
+            </div>
+         )}
       </Modal>
       
       <Modal isOpen={!!editingFollowUp} onClose={() => setEditingFollowUp(null)} title={editingFollowUp?.id ? 'Editar Acompanhamento' : 'Adicionar Acompanhamento'}>
