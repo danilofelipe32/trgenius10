@@ -1639,6 +1639,13 @@ Solicitação do usuário: "${refinePrompt}"
           )}
          
           <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-30 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+             <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-slate-500 rounded-full hover:bg-slate-100 hover:text-slate-800 transition-colors z-40"
+                aria-label="Fechar Menu"
+              >
+                <Icon name="times" className="text-2xl" />
+              </button>
              <div className="flex items-center justify-between gap-3 mb-6 pt-10 md:pt-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
@@ -2058,7 +2065,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-[4.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
+                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2148,7 +2155,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-[4.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
+                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
                     <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
