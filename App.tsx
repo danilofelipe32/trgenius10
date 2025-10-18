@@ -494,6 +494,9 @@ const App: React.FC = () => {
 
   // Risk Map Specific State
   const [editingRisk, setEditingRisk] = useState<RiskItem | null>(null);
+  const [editingRevision, setEditingRevision] = useState<RiskRevision | null>(null);
+  const [editingFollowUp, setEditingFollowUp] = useState<RiskFollowUp | null>(null);
+
 
   // Generated Content Modal State
   const [generatedContentModal, setGeneratedContentModal] = useState<{
@@ -1830,6 +1833,45 @@ Solicitação do usuário: "${refinePrompt}"
     return 'bg-red-500 text-white font-bold'; // Alto/Vermelho
   };
 
+  const handleSaveRisk = () => {
+    if (!editingRisk) return;
+    const isNew = !riskMapContent.risks.some(r => r.id === editingRisk.id);
+    let updatedRisks;
+    if (isNew) {
+        updatedRisks = [...riskMapContent.risks, editingRisk];
+    } else {
+        updatedRisks = riskMapContent.risks.map(r => r.id === editingRisk.id ? editingRisk : r);
+    }
+    handleRiskMapChange('risks', updatedRisks);
+    setEditingRisk(null);
+  };
+  
+  const handleSaveRevision = () => {
+      if (!editingRevision) return;
+      const isNew = !riskMapContent.revisions.some(r => r.id === editingRevision.id);
+      let updatedRevisions;
+      if (isNew) {
+          updatedRevisions = [...riskMapContent.revisions, editingRevision];
+      } else {
+          updatedRevisions = riskMapContent.revisions.map(r => r.id === editingRevision.id ? editingRevision : r);
+      }
+      handleRiskMapChange('revisions', updatedRevisions);
+      setEditingRevision(null);
+  };
+  
+  const handleSaveFollowUp = () => {
+      if (!editingFollowUp) return;
+      const isNew = !riskMapContent.followUps.some(f => f.id === editingFollowUp.id);
+      let updatedFollowUps;
+      if (isNew) {
+          updatedFollowUps = [...riskMapContent.followUps, editingFollowUp];
+      } else {
+          updatedFollowUps = riskMapContent.followUps.map(f => f.id === editingFollowUp.id ? editingFollowUp : f);
+      }
+      handleRiskMapChange('followUps', updatedFollowUps);
+      setEditingFollowUp(null);
+  };
+
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
@@ -2394,117 +2436,166 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
 
             <div className={`${activeView === 'mapa-riscos' ? 'block' : 'hidden'}`}>
-               <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">Dados Gerais da Contratação</h2>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="riskmap-processNumber" className="block text-sm font-medium text-slate-700 mb-1">Processo Administrativo nº</label>
-                        <input id="riskmap-processNumber" type="text" value={riskMapContent.processNumber} onChange={e => handleRiskMapChange('processNumber', e.target.value)} placeholder="<XXXXXXXX>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
-                    </div>
-                    <div>
-                        <label htmlFor="riskmap-projectName" className="block text-sm font-medium text-slate-700 mb-1">Nome do Projeto / Solução</label>
-                        <input id="riskmap-projectName" type="text" value={riskMapContent.projectName} onChange={e => handleRiskMapChange('projectName', e.target.value)} placeholder="<Nome do Projeto / Solução>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
-                    </div>
-                    <div className="md:col-span-2">
-                        <label htmlFor="riskmap-locationAndDate" className="block text-sm font-medium text-slate-700 mb-1">Local e Data</label>
-                        <input id="riskmap-locationAndDate" type="text" value={riskMapContent.locationAndDate} onChange={e => handleRiskMapChange('locationAndDate', e.target.value)} placeholder="<Local>, <mês> de <ano>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
-                    </div>
-                 </div>
-               </div>
-
+                {/* Dados Gerais */}
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                  <div className="flex justify-between items-center mb-4 flex-wrap gap-y-3">
-                      <h2 className="text-xl font-bold text-slate-800">1 - INTRODUÇÃO</h2>
-                      <div className="w-full sm:w-auto flex items-stretch gap-2 flex-wrap">
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(riskMapContent.introduction);
-                              setIsIntroCopied(true);
-                              setTimeout(() => setIsIntroCopied(false), 2000);
-                            }}
-                            className={`flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold rounded-lg transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0 ${isIntroCopied ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                            title={isIntroCopied ? 'Copiado!' : 'Copiar'}
-                          >
-                            <Icon name={isIntroCopied ? 'check' : 'copy'} className="mr-2" />
-                            <span>{isIntroCopied ? 'Copiado!' : 'Copiar'}</span>
-                          </button>
-                          <button
-                            onClick={() => handleOpenEditModal('mapa-riscos', 'introduction', 'Introdução')}
-                            className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0"
-                            title="Editar e Refinar"
-                          >
-                            <Icon name="pencil-alt" className="mr-2" />
-                            <span>Editar/Refinar</span>
-                          </button>
-                          <button
-                            onClick={handleRewriteRiskMapIntroduction}
-                            disabled={loadingSection === 'riskmap-introduction'}
-                            className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[calc(50%-0.25rem)] sm:min-w-0"
-                          >
-                            <Icon name={loadingSection === 'riskmap-introduction' ? 'spinner' : 'wand-magic-sparkles'} className={`mr-2 ${loadingSection === 'riskmap-introduction' ? 'fa-spin' : ''}`} />
-                            <span>{loadingSection === 'riskmap-introduction' ? 'A gerar...' : 'Gerar com IA'}</span>
-                          </button>
-                      </div>
-                  </div>
-                  <textarea value={riskMapContent.introduction} onChange={e => handleRiskMapChange('introduction', e.target.value)} className="w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors border-slate-200 focus:ring-yellow-500" />
+                    <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">Dados Gerais da Contratação</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label htmlFor="riskmap-processNumber" className="block text-sm font-medium text-slate-700 mb-1">Processo Administrativo nº</label>
+                            <input id="riskmap-processNumber" type="text" value={riskMapContent.processNumber} onChange={e => handleRiskMapChange('processNumber', e.target.value)} placeholder="<XXXXXXXX>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
+                        </div>
+                        <div>
+                            <label htmlFor="riskmap-projectName" className="block text-sm font-medium text-slate-700 mb-1">Nome do Projeto / Solução</label>
+                            <input id="riskmap-projectName" type="text" value={riskMapContent.projectName} onChange={e => handleRiskMapChange('projectName', e.target.value)} placeholder="<Nome do Projeto / Solução>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="riskmap-locationAndDate" className="block text-sm font-medium text-slate-700 mb-1">Local e Data</label>
+                            <input id="riskmap-locationAndDate" type="text" value={riskMapContent.locationAndDate} onChange={e => handleRiskMapChange('locationAndDate', e.target.value)} placeholder="<Local>, <mês> de <ano>" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"/>
+                        </div>
+                    </div>
                 </div>
 
+                {/* Histórico de Revisões */}
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                  <h2 className="text-xl font-bold text-slate-800 mb-2">2 - IDENTIFICAÇÃO E ANÁLISE DOS PRINCIPAIS RISCOS</h2>
-                  <p className="text-sm text-slate-600 mb-4">A tabela a seguir apresenta uma síntese dos riscos identificados e classificados neste documento.</p>
-                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-500">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-100">
-                            <tr>
-                                <th scope="col" className="px-4 py-3">ID</th>
-                                <th scope="col" className="px-4 py-3">Risco</th>
-                                <th scope="col" className="px-4 py-3">Relacionado a</th>
-                                <th scope="col" className="px-4 py-3 text-center">P</th>
-                                <th scope="col" className="px-4 py-3 text-center">I</th>
-                                <th scope="col" className="px-4 py-3 text-center">Nível</th>
-                                <th scope="col" className="px-4 py-3 text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                          {/* Tabela de Riscos aqui */}
-                        </tbody>
-                    </table>
-                  </div>
-
-                  <p className="text-sm text-slate-500 italic mt-6 mb-4">
-                    {"<A seguir encontra-se um exemplo de relação de riscos, não exaustiva, de uma contratação de serviços de desenvolvimento e manutenção de software.>"}
-                  </p>
-                  <div className="overflow-x-auto border rounded-lg">
-                     <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-100">
-                           <tr>
-                                <th className="px-4 py-3">Id</th>
-                                <th className="px-4 py-3">Risco</th>
-                                <th className="px-4 py-3">Relacionado ao(à):</th>
-                                <th className="px-4 py-3 text-center">P</th>
-                                <th className="px-4 py-3 text-center">I</th>
-                                <th className="px-4 py-3 text-center">Nível de Risco (P x I)</th>
-                           </tr>
-                        </thead>
-                        <tbody className="bg-white">
-                           {exampleRisks.map(risk => (
-                            <tr key={risk.id} className="border-b last:border-b-0">
-                                <td className="px-4 py-2 font-medium text-slate-900">{risk.id}</td>
-                                <td className="px-4 py-2">{risk.risk}</td>
-                                <td className="px-4 py-2">{risk.relatedTo}</td>
-                                <td className="px-4 py-2 text-center">{risk.p}</td>
-                                <td className="px-4 py-2 text-center">{risk.i}</td>
-                                <td className={`px-4 py-2 text-center ${getRiskLevelClassExample(risk.p * risk.i)}`}>
-                                  {risk.p * risk.i}
-                                </td>
-                            </tr>
-                           ))}
-                        </tbody>
-                     </table>
-                  </div>
-
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-slate-800">Histórico de Revisões</h2>
+                        <button onClick={() => setEditingRevision({ id: Date.now(), date: '', version: '', description: '', phase: 'PC', author: '' })} className="bg-yellow-100 text-yellow-800 font-bold py-2 px-4 rounded-lg hover:bg-yellow-200 transition-colors text-sm flex items-center gap-2">
+                            <Icon name="plus" /> Adicionar Revisão
+                        </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-500">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                                <tr>
+                                    <th scope="col" className="px-4 py-3">Data</th>
+                                    <th scope="col" className="px-4 py-3">Versão</th>
+                                    <th scope="col" className="px-4 py-3">Descrição</th>
+                                    <th scope="col" className="px-4 py-3">Fase</th>
+                                    <th scope="col" className="px-4 py-3">Autor</th>
+                                    <th scope="col" className="px-4 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {riskMapContent.revisions.map((rev) => (
+                                    <tr key={rev.id} className="bg-white border-b">
+                                        <td className="px-4 py-2">{rev.date}</td>
+                                        <td className="px-4 py-2">{rev.version}</td>
+                                        <td className="px-4 py-2">{rev.description}</td>
+                                        <td className="px-4 py-2">{rev.phase}</td>
+                                        <td className="px-4 py-2">{rev.author}</td>
+                                        <td className="px-4 py-2 text-center">
+                                            <button onClick={() => setEditingRevision(rev)} className="text-blue-600 hover:text-blue-800 p-1"><Icon name="pencil-alt" /></button>
+                                            <button onClick={() => handleRiskMapChange('revisions', riskMapContent.revisions.filter(r => r.id !== rev.id))} className="text-red-600 hover:text-red-800 p-1"><Icon name="trash" /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {riskMapContent.revisions.length === 0 && (
+                                    <tr><td colSpan={6} className="text-center italic text-slate-400 py-4">Nenhuma revisão adicionada.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
+                {/* Introdução */}
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <div className="flex justify-between items-center mb-4 flex-wrap gap-y-3">
+                        <h2 className="text-xl font-bold text-slate-800">1 - INTRODUÇÃO</h2>
+                        <div className="w-full sm:w-auto flex items-stretch gap-2 flex-wrap">
+                            <button onClick={() => { navigator.clipboard.writeText(riskMapContent.introduction); setIsIntroCopied(true); setTimeout(() => setIsIntroCopied(false), 2000); }} className={`flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold rounded-lg transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0 ${isIntroCopied ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`} title={isIntroCopied ? 'Copiado!' : 'Copiar'}>
+                                <Icon name={isIntroCopied ? 'check' : 'copy'} className="mr-2" />
+                                <span>{isIntroCopied ? 'Copiado!' : 'Copiar'}</span>
+                            </button>
+                            <button onClick={() => handleOpenEditModal('mapa-riscos', 'introduction', 'Introdução')} className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0" title="Editar e Refinar">
+                                <Icon name="pencil-alt" className="mr-2" />
+                                <span>Editar/Refinar</span>
+                            </button>
+                            <button onClick={handleRewriteRiskMapIntroduction} disabled={loadingSection === 'riskmap-introduction'} className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[calc(50%-0.25rem)] sm:min-w-0">
+                                <Icon name={loadingSection === 'riskmap-introduction' ? 'spinner' : 'wand-magic-sparkles'} className={`mr-2 ${loadingSection === 'riskmap-introduction' ? 'fa-spin' : ''}`} />
+                                <span>{loadingSection === 'riskmap-introduction' ? 'A gerar...' : 'Gerar com IA'}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea value={riskMapContent.introduction} onChange={e => handleRiskMapChange('introduction', e.target.value)} className="w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors border-slate-200 focus:ring-yellow-500" />
+                </div>
+
+                {/* Identificação de Riscos */}
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                        <h2 className="text-xl font-bold text-slate-800">2 - IDENTIFICAÇÃO E ANÁLISE DOS PRINCIPAIS RISCOS</h2>
+                        <button onClick={() => setEditingRisk({ id: `R${(riskMapContent.risks.length + 1).toString().padStart(2, '0')}`, risk: '', relatedTo: 'Planejamento da Contratação', probability: 5, impact: 5, probabilityText: 'Baixa', impactText: 'Baixo', damages: [''], treatment: 'Mitigar', preventiveActions: [], contingencyActions: [] })} className="bg-yellow-100 text-yellow-800 font-bold py-2 px-4 rounded-lg hover:bg-yellow-200 transition-colors text-sm flex items-center gap-2">
+                           <Icon name="plus" /> Adicionar Risco
+                        </button>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-4">A tabela a seguir apresenta uma síntese dos riscos identificados e classificados neste documento.</p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-500">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                                <tr>
+                                    <th scope="col" className="px-4 py-3">ID</th>
+                                    <th scope="col" className="px-4 py-3">Risco</th>
+                                    <th scope="col" className="px-4 py-3">Relacionado a</th>
+                                    <th scope="col" className="px-4 py-3 text-center">P</th>
+                                    <th scope="col" className="px-4 py-3 text-center">I</th>
+                                    <th scope="col" className="px-4 py-3 text-center">Nível</th>
+                                    <th scope="col" className="px-4 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {riskMapContent.risks.map((risk) => (
+                                    <tr key={risk.id} className="bg-white border-b">
+                                        <td className="px-4 py-2 font-semibold">{risk.id}</td>
+                                        <td className="px-4 py-2">{risk.risk}</td>
+                                        <td className="px-4 py-2">{risk.relatedTo}</td>
+                                        <td className="px-4 py-2 text-center">{risk.probability}</td>
+                                        <td className="px-4 py-2 text-center">{risk.impact}</td>
+                                        <td className="px-4 py-2 text-center">
+                                            <span className={`px-2 py-1 font-semibold rounded-full text-xs ${getRiskLevelClass(risk.probability * risk.impact)}`}>
+                                                {risk.probability * risk.impact}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2 text-center">
+                                            <button onClick={() => setEditingRisk(risk)} className="text-blue-600 hover:text-blue-800 p-1" title="Detalhar/Editar Risco"><Icon name="tasks" /></button>
+                                            <button onClick={() => handleRiskMapChange('risks', riskMapContent.risks.filter(r => r.id !== risk.id))} className="text-red-600 hover:text-red-800 p-1" title="Remover Risco"><Icon name="trash" /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {riskMapContent.risks.length === 0 && (
+                                    <tr><td colSpan={7} className="text-center italic text-slate-400 py-4">Nenhum risco adicionado.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p className="text-sm text-slate-500 italic mt-6 mb-4">{"<A seguir encontra-se um exemplo de relação de riscos, não exaustiva, de uma contratação de serviços de desenvolvimento e manutenção de software.>"}</p>
+                    <div className="overflow-x-auto border rounded-lg">
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                                <tr>
+                                    <th className="px-4 py-3">Id</th>
+                                    <th className="px-4 py-3">Risco</th>
+                                    <th className="px-4 py-3">Relacionado ao(à):</th>
+                                    <th className="px-4 py-3 text-center">P</th>
+                                    <th className="px-4 py-3 text-center">I</th>
+                                    <th className="px-4 py-3 text-center">Nível de Risco (P x I)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                               {exampleRisks.map(risk => (
+                                <tr key={risk.id} className="border-b last:border-b-0">
+                                    <td className="px-4 py-2 font-medium text-slate-900">{risk.id}</td>
+                                    <td className="px-4 py-2">{risk.risk}</td>
+                                    <td className="px-4 py-2">{risk.relatedTo}</td>
+                                    <td className="px-4 py-2 text-center">{risk.p}</td>
+                                    <td className="px-4 py-2 text-center">{risk.i}</td>
+                                    <td className={`px-4 py-2 text-center ${getRiskLevelClassExample(risk.p * risk.i)}`}>{risk.p * risk.i}</td>
+                                </tr>
+                               ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Avaliação e Tratamento */}
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
                    <h2 className="text-xl font-bold text-slate-800 mb-2">3 - AVALIAÇÃO E TRATAMENTO DOS RISCOS IDENTIFICADOS</h2>
                    <div className="space-y-2 text-sm text-slate-500 italic">
@@ -2515,18 +2606,72 @@ Solicitação do usuário: "${refinePrompt}"
                    <p className="text-slate-600 mt-4">Clique no botão <Icon name="tasks" /> de um risco na tabela acima para detalhar seu tratamento, incluindo danos, ações preventivas e de contingência.</p>
                 </div>
 
+                {/* Acompanhamento */}
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                  <h2 className="text-xl font-bold text-slate-800 mb-2">4 - ACOMPANHAMENTO DAS AÇÕES DE TRATAMENTO DE RISCOS</h2>
-                  <p className="text-sm text-slate-500 italic mb-4">{"<Espaço para registro e acompanhamento das ações de tratamento dos riscos, que poderá conter eventos relevantes relacionados ao gerenciamento de riscos, conforme exemplo abaixo>."}</p>
-                   <div className="overflow-x-auto">
-                     <table className="w-full text-sm text-left text-slate-500">
-                        {/* Tabela de Acompanhamento */}
-                     </table>
-                   </div>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-slate-800">4 - ACOMPANHAMENTO DAS AÇÕES DE TRATAMENTO DE RISCOS</h2>
+                        <button onClick={() => setEditingFollowUp({ id: Date.now(), date: '', riskId: '', actionId: '', notes: '' })} className="bg-yellow-100 text-yellow-800 font-bold py-2 px-4 rounded-lg hover:bg-yellow-200 transition-colors text-sm flex items-center gap-2" disabled={riskMapContent.risks.length === 0}>
+                            <Icon name="plus" /> Adicionar Acompanhamento
+                        </button>
+                    </div>
+                    <p className="text-sm text-slate-500 italic mb-4">{"<Espaço para registro e acompanhamento das ações de tratamento dos riscos, que poderá conter eventos relevantes relacionados ao gerenciamento de riscos, conforme exemplo abaixo>."}</p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-500">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                                <tr>
+                                    <th scope="col" className="px-4 py-3">Data</th>
+                                    <th scope="col" className="px-4 py-3">ID Risco</th>
+                                    <th scope="col" className="px-4 py-3">ID Ação</th>
+                                    <th scope="col" className="px-4 py-3">Registro e Acompanhamento</th>
+                                    <th scope="col" className="px-4 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {riskMapContent.followUps.map((follow) => (
+                                    <tr key={follow.id} className="bg-white border-b">
+                                        <td className="px-4 py-2">{follow.date}</td>
+                                        <td className="px-4 py-2">{follow.riskId}</td>
+                                        <td className="px-4 py-2">{follow.actionId}</td>
+                                        <td className="px-4 py-2">{follow.notes}</td>
+                                        <td className="px-4 py-2 text-center">
+                                            <button onClick={() => setEditingFollowUp(follow)} className="text-blue-600 hover:text-blue-800 p-1"><Icon name="pencil-alt" /></button>
+                                            <button onClick={() => handleRiskMapChange('followUps', riskMapContent.followUps.filter(f => f.id !== follow.id))} className="text-red-600 hover:text-red-800 p-1"><Icon name="trash" /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {riskMapContent.followUps.length === 0 && (
+                                    <tr><td colSpan={5} className="text-center italic text-slate-400 py-4">Nenhum acompanhamento adicionado.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Assinaturas */}
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b">Responsáveis</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 className="font-semibold text-slate-700 mb-2">Elaborado por:</h3>
+                            <div className="space-y-3">
+                                <input type="text" placeholder="Nome do Responsável" value={riskMapContent.preparedBy.name} onChange={e => handleRiskMapChange('preparedBy', {...riskMapContent.preparedBy, name: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"/>
+                                <input type="text" placeholder="Cargo" value={riskMapContent.preparedBy.role} onChange={e => handleRiskMapChange('preparedBy', {...riskMapContent.preparedBy, role: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"/>
+                                <input type="text" placeholder="Matrícula" value={riskMapContent.preparedBy.registration} onChange={e => handleRiskMapChange('preparedBy', {...riskMapContent.preparedBy, registration: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"/>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-slate-700 mb-2">Aprovado por:</h3>
+                            <div className="space-y-3">
+                                <input type="text" placeholder="Nome do Responsável" value={riskMapContent.approvedBy.name} onChange={e => handleRiskMapChange('approvedBy', {...riskMapContent.approvedBy, name: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"/>
+                                <input type="text" placeholder="Cargo" value={riskMapContent.approvedBy.role} onChange={e => handleRiskMapChange('approvedBy', {...riskMapContent.approvedBy, role: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"/>
+                                <input type="text" placeholder="Matrícula" value={riskMapContent.approvedBy.registration} onChange={e => handleRiskMapChange('approvedBy', {...riskMapContent.approvedBy, registration: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"/>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Salvar Mapa de Riscos */}
-                 <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
+                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('mapa-riscos')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2939,6 +3084,77 @@ Solicitação do usuário: "${refinePrompt}"
             {generatedContentModal && <ContentRenderer text={generatedContentModal.content} />}
         </div>
       </Modal>
+
+      {/* --- Modals for Risk Map --- */}
+      <Modal isOpen={!!editingRevision} onClose={() => setEditingRevision(null)} title={editingRevision?.id ? 'Editar Revisão' : 'Adicionar Revisão'}>
+        {editingRevision && (
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Data</label>
+                    <input type="date" value={editingRevision.date} onChange={e => setEditingRevision({...editingRevision, date: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Versão</label>
+                    <input type="text" value={editingRevision.version} onChange={e => setEditingRevision({...editingRevision, version: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Descrição</label>
+                    <input type="text" value={editingRevision.description} onChange={e => setEditingRevision({...editingRevision, description: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Fase</label>
+                     <select value={editingRevision.phase} onChange={e => setEditingRevision({...editingRevision, phase: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
+                        <option value="PC">PC - Planejamento da Contratação</option>
+                        <option value="SF">SF - Seleção de Fornecedores</option>
+                        <option value="GC">GC - Gestão do Contrato</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Autor</label>
+                    <input type="text" value={editingRevision.author} onChange={e => setEditingRevision({...editingRevision, author: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                    <button onClick={() => setEditingRevision(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button onClick={handleSaveRevision} className="bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
+                </div>
+            </div>
+        )}
+      </Modal>
+
+      <Modal isOpen={!!editingRisk} onClose={() => setEditingRisk(null)} title={riskMapContent.risks.some(r => r.id === editingRisk?.id) ? 'Editar Risco' : 'Adicionar Risco'} maxWidth="max-w-4xl">
+         {/* Conteúdo do Modal de Riscos aqui */}
+      </Modal>
+      
+      <Modal isOpen={!!editingFollowUp} onClose={() => setEditingFollowUp(null)} title={editingFollowUp?.id ? 'Editar Acompanhamento' : 'Adicionar Acompanhamento'}>
+        {editingFollowUp && (
+             <div className="space-y-4">
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700">Data</label>
+                    <input type="date" value={editingFollowUp.date} onChange={e => setEditingFollowUp({...editingFollowUp, date: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">ID do Risco</label>
+                     <select value={editingFollowUp.riskId} onChange={e => setEditingFollowUp({...editingFollowUp, riskId: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
+                         <option value="">Selecione um Risco</option>
+                        {riskMapContent.risks.map(risk => <option key={risk.id} value={risk.id}>{risk.id} - {risk.risk}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700">ID da Ação</label>
+                    <input type="text" value={editingFollowUp.actionId} onChange={e => setEditingFollowUp({...editingFollowUp, actionId: e.target.value})} placeholder="Ex: P1, C2" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Registro e Acompanhamento</label>
+                    <textarea value={editingFollowUp.notes} onChange={e => setEditingFollowUp({...editingFollowUp, notes: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500" rows={4}/>
+                </div>
+                 <div className="flex justify-end gap-3 pt-4">
+                    <button onClick={() => setEditingFollowUp(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button onClick={handleSaveFollowUp} className="bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
+                </div>
+             </div>
+        )}
+      </Modal>
+
 
     {/* Floating Action Button for Mobile */}
     <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(10.5rem + env(safe-area-inset-bottom))' }}>
