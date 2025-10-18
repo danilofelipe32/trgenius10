@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -1930,8 +1930,7 @@ Solicitação do usuário: "${refinePrompt}"
                 Seu assistente para criar Estudos Técnicos e Termos de Referência, em conformidade com a <b>Lei 14.133/21</b>.
             </p>
             
-            {/* Botão para criar novo documento (visível em desktop) */}
-            <div className="hidden md:block mb-6">
+            <div className="block mb-6">
                 <button
                     onClick={() => setIsNewDocModalOpen(true)}
                     className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-pink-700 transition-all flex items-center justify-center gap-2"
@@ -2326,48 +2325,57 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
           </aside>
           
-          <main className="flex-1 p-4 pb-40 sm:p-6 md:p-10 md:pb-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
+          <main className="flex-1 p-4 pb-48 sm:p-6 md:p-10 md:pb-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
              <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
-                <div className="flex-grow">
-                  <div className="border-b border-slate-200">
-                    <nav className="-mb-px hidden md:flex space-x-6" aria-label="Tabs">
-                      <button
-                        onClick={() => switchView('etp')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                          activeView === 'etp'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        Gerador de ETP
-                      </button>
-                      <button
-                        onClick={() => switchView('mapa-riscos')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                          activeView === 'mapa-riscos'
-                            ? 'border-yellow-600 text-yellow-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        Mapa de Riscos
-                      </button>
-                      <button
-                        onClick={() => switchView('tr')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                           activeView === 'tr'
-                            ? 'border-purple-600 text-purple-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        Gerador de TR
-                      </button>
-                    </nav>
-                     <h2 className="md:hidden text-2xl font-bold text-slate-800 py-4">
-                        {activeView === 'etp' ? 'Gerador de ETP' : activeView === 'mapa-riscos' ? 'Mapa de Riscos' : 'Gerador de TR'}
-                    </h2>
-                  </div>
+                 <div className="flex items-center gap-2 md:flex-grow">
+                     <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="md:hidden text-slate-500 hover:text-slate-800 p-2 -ml-2"
+                        aria-label="Abrir Menu"
+                    >
+                      <Icon name="bars" className="text-2xl" />
+                    </button>
+                    <div className="flex-grow">
+                      <div className="border-b border-slate-200">
+                        <nav className="-mb-px hidden md:flex space-x-6" aria-label="Tabs">
+                          <button
+                            onClick={() => switchView('etp')}
+                            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                              activeView === 'etp'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            Gerador de ETP
+                          </button>
+                          <button
+                            onClick={() => switchView('mapa-riscos')}
+                            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                              activeView === 'mapa-riscos'
+                                ? 'border-yellow-600 text-yellow-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            Mapa de Riscos
+                          </button>
+                          <button
+                            onClick={() => switchView('tr')}
+                            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                               activeView === 'tr'
+                                ? 'border-purple-600 text-purple-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            Gerador de TR
+                          </button>
+                        </nav>
+                         <h2 className="md:hidden text-xl font-bold text-slate-800 py-4 truncate">
+                            {activeView === 'etp' ? 'Gerador de ETP' : activeView === 'mapa-riscos' ? 'Mapa de Riscos' : 'Gerador de TR'}
+                        </h2>
+                      </div>
+                    </div>
                 </div>
-                <div className="flex-shrink-0 ml-4 flex items-center gap-4">
+                <div className="flex-shrink-0 flex items-center gap-4">
                     <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-600" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
                         <Icon name="globe-americas" />
                         <span className="hidden sm:inline">Pesquisa Web</span>
@@ -2437,7 +2445,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
+                <div className="fixed bottom-20 md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2688,7 +2696,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                 </div>
 
-                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
+                <div className="fixed bottom-20 md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('mapa-riscos')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2775,7 +2783,7 @@ Solicitação do usuário: "${refinePrompt}"
                     );
                 })}
 
-                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
+                <div className="fixed bottom-20 md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2793,6 +2801,39 @@ Solicitação do usuário: "${refinePrompt}"
             
           </main>
        </div>
+
+        {/* Floating Action Button for creating new documents */}
+        <button
+          onClick={() => setIsNewDocModalOpen(true)}
+          className="fixed bottom-36 right-6 bg-pink-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg hover:bg-pink-700 active:bg-pink-800 transition-transform transform hover:scale-105 z-40"
+          title="Criar Novo Documento"
+          aria-label="Criar Novo Documento"
+        >
+          <Icon name="plus" className="text-2xl" />
+        </button>
+
+        {/* Bottom Navigation for Mobile */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)'}}>
+            <div className="flex justify-around items-center h-20">
+                <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center gap-1 text-xs font-medium w-full h-full transition-colors ${activeView === 'etp' ? 'text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    <Icon name="file-alt" className="text-2xl" />
+                    <span>ETP</span>
+                </button>
+                <button onClick={() => switchView('mapa-riscos')} className={`flex flex-col items-center justify-center gap-1 text-xs font-medium w-full h-full transition-colors ${activeView === 'mapa-riscos' ? 'text-yellow-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    <Icon name="shield-alt" className="text-2xl" />
+                    <span>Mapa Risco</span>
+                </button>
+                <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center gap-1 text-xs font-medium w-full h-full transition-colors ${activeView === 'tr' ? 'text-purple-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    <Icon name="gavel" className="text-2xl" />
+                    <span>TR</span>
+                </button>
+                <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center gap-1 text-xs font-medium w-full h-full text-slate-500 hover:bg-slate-50 transition-colors">
+                    <Icon name="bars" className="text-2xl" />
+                    <span>Menu</span>
+                </button>
+            </div>
+        </div>
+
        {isInstallBannerVisible && installPrompt && <InstallPWA onInstall={handleInstallClick} onDismiss={handleDismissInstallBanner} />}
        <div aria-live="polite" aria-atomic="true" className="fixed top-5 right-5 z-[100] w-full max-w-sm">
             <div className="relative w-full">

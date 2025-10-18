@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
-// Fix: Initialize GoogleGenAI with API key from environment variables as per coding guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Fix: Initialize GoogleGenAI with API key from user request.
+const ai = new GoogleGenAI({ apiKey: "AIzaSyB1SGptDVNzOh888rzlNSkXCiT5P2goNo0" });
 
 export async function callGemini(prompt: string, useWebSearch: boolean = false): Promise<string> {
   try {
