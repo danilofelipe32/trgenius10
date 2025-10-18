@@ -1688,6 +1688,19 @@ Solicitação do usuário: "${refinePrompt}"
                 Seu assistente para criar Estudos Técnicos e Termos de Referência, em conformidade com a <b>Lei 14.133/21</b>.
             </p>
             
+            {/* Botão para criar novo documento (visível em desktop) */}
+            <div className="hidden md:block mb-6">
+                <button
+                    onClick={() => setIsNewDocModalOpen(true)}
+                    className="w-full bg-pink-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-pink-700 transition-all flex items-center justify-center gap-2"
+                    title="Criar Novo Documento"
+                    aria-haspopup="dialog"
+                >
+                    <Icon name="plus" className="text-lg" />
+                    <span>Criar Novo Documento</span>
+                </button>
+            </div>
+
             <div className="flex-1 overflow-y-auto -mr-6 pr-6 space-y-1">
                 <div className="py-2">
                     <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Busca Rápida</h3>
