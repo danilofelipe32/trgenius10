@@ -98,8 +98,8 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
     const parseInline = (line: string): React.ReactNode[] => {
         const nodes: React.ReactNode[] = [];
         let lastIndex = 0;
-        // Regex for Markdown links, standalone URLs, and bold text
-        const regex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\bhttps?:\/\/[^\s()<>]+[^\s.,'"`?!;:]*[^\s.,'"`?!;:)])|(\*\*(.*?)\*\*)/g;
+        // Regex for Markdown links, standalone URLs (now more robust), and bold text
+        const regex = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\bhttps?:\/\/[\w\.\/\-?=&%#_]+)|(\*\*(.*?)\*\*)/g;
 
         let match;
         while ((match = regex.exec(line)) !== null) {
@@ -141,7 +141,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
             }
         }
         listItems = [];
@@ -162,6 +162,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             return;
         }
 
+        // Corrected regex to treat '.' literally
         const olMatch = line.match(/^\s*\d+\.\s+(.*)/);
         if (olMatch) {
             if (listType !== 'ol') flushList();
@@ -2687,14 +2688,13 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                 </div>
 
-                {/* Salvar Mapa de Riscos */}
                 <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('mapa-riscos')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                            <Icon name="eraser" /> Limpar
+                            <Icon name="eraser" /> Limpar Formulário
                         </button>
-                        <button onClick={() => handleSaveDocument('mapa-riscos')} className="bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-yellow-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                        <button onClick={() => handleSaveDocument('mapa-riscos')} className="bg-yellow-500 text-yellow-900 font-bold py-3 px-6 rounded-lg hover:bg-yellow-600 transition-colors shadow-md flex items-center justify-center gap-2">
                             <Icon name="save" /> Salvar Mapa
                         </button>
                     </div>
@@ -2703,592 +2703,141 @@ Solicitação do usuário: "${refinePrompt}"
 
             <div className={`${activeView === 'tr' ? 'block' : 'hidden'}`}>
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                    <h2 className="text-lg font-semibold text-slate-700 mb-3">Carregar Documentos para Contexto</h2>
-                    <p className="text-sm text-slate-500 mb-4">Selecione documentos salvos para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
+                    <h2 className="text-xl font-bold text-slate-800 mb-4">Contexto para Geração</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="etp-selector" className="block text-sm font-medium text-slate-600 mb-1">1. Estudo Técnico Preliminar (ETP)</label>
-                            <select
-                                id="etp-selector"
-                                onChange={(e) => handleLoadEtpForTr(e.target.value)}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                defaultValue=""
-                            >
-                                <option value="">-- Selecione um ETP --</option>
-                                {savedETPs.map(etp => (
-                                    <option key={etp.id} value={etp.id}>{etp.name}</option>
-                                ))}
+                            <label htmlFor="etp-selector" className="block text-sm font-medium text-slate-700 mb-1">Carregar ETP como Base</label>
+                            <select id="etp-selector" onChange={(e) => handleLoadEtpForTr(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                <option value="">Nenhum ETP selecionado</option>
+                                {savedETPs.map(etp => <option key={etp.id} value={etp.id}>{etp.name}</option>)}
                             </select>
-                            {loadedEtpForTr && (
-                                <div className="mt-2 p-2 text-xs bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                                    <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado.</p>
-                                </div>
-                            )}
                         </div>
                         <div>
-                            <label htmlFor="riskmap-selector" className="block text-sm font-medium text-slate-600 mb-1">2. Mapa de Riscos</label>
-                            <select
-                                id="riskmap-selector"
-                                onChange={(e) => handleLoadRiskMapForTr(e.target.value)}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-yellow-500"
-                                defaultValue=""
-                            >
-                                <option value="">-- Selecione um Mapa de Risco --</option>
-                                {savedRiskMaps.map(map => (
-                                    <option key={map.id} value={map.id}>{map.name}</option>
-                                ))}
+                            <label htmlFor="riskmap-selector" className="block text-sm font-medium text-slate-700 mb-1">Carregar Mapa de Riscos (Opcional)</label>
+                            <select id="riskmap-selector" onChange={(e) => handleLoadRiskMapForTr(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                <option value="">Nenhum Mapa de Riscos selecionado</option>
+                                {savedRiskMaps.map(map => <option key={map.id} value={map.id}>{map.name}</option>)}
                             </select>
-                             {loadedRiskMapForTr && (
-                                <div className="mt-2 p-2 text-xs bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                                    <p className="font-semibold">Mapa "{loadedRiskMapForTr.name}" carregado.</p>
-                                </div>
-                            )}
                         </div>
                     </div>
+                    {loadedEtpForTr && (
+                        <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-lg text-sm flex justify-between items-center">
+                            <span><Icon name="check-circle" className="mr-2" />ETP carregado: <strong>{loadedEtpForTr.name}</strong></span>
+                            <button onClick={handleImportEtpAttachments} className="text-xs font-bold bg-blue-200 text-blue-800 px-2 py-1 rounded hover:bg-blue-300">Importar Anexos</button>
+                        </div>
+                    )}
                 </div>
 
                 {trSections.map(section => {
-                  if (section.isAttachmentSection) {
-                    return (
-                        <div key={section.id} className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
-                            <div className="flex justify-between items-center mb-3 flex-wrap gap-y-3">
-                                 <div className="flex items-center gap-2">
-                                    <label className="block text-lg font-semibold text-slate-700">{section.title}</label>
-                                    {section.tooltip && <Icon name="question-circle" className="text-slate-400 cursor-help" title={section.tooltip} />}
-                                 </div>
-                                 <button
-                                    onClick={handleImportEtpAttachments}
-                                    disabled={!loadedEtpForTr}
-                                    className="px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Importar todos os anexos do ETP carregado"
-                                 >
-                                    <Icon name="file-import" className="mr-2" />
-                                    Importar do ETP
-                                 </button>
+                    if (section.isAttachmentSection) {
+                        return (
+                            <div key={section.id} className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
+                                <div className="flex justify-between items-center mb-3">
+                                    <div className="flex items-center gap-2">
+                                       <label className="block text-lg font-semibold text-slate-700">{section.title}</label>
+                                       {section.tooltip && <Icon name="question-circle" className="text-slate-400 cursor-help" title={section.tooltip} />}
+                                    </div>
+                                </div>
+                                <textarea
+                                    id={section.id}
+                                    value={trSectionsContent[section.id] || ''}
+                                    onChange={(e) => handleSectionChange('tr', section.id, e.target.value)}
+                                    placeholder={section.placeholder}
+                                    className="w-full h-24 p-3 bg-slate-50 border rounded-lg focus:ring-2 focus:border-purple-500 transition-colors border-slate-200 focus:ring-purple-500 mb-4"
+                                />
+                                
+                                <AttachmentManager
+                                    attachments={trAttachments}
+                                    onAttachmentsChange={setTrAttachments}
+                                    onPreview={setViewingAttachment}
+                                    addNotification={addNotification}
+                                />
                             </div>
-                            <textarea
-                                id={section.id}
-                                value={trSectionsContent[section.id] || ''}
-                                onChange={(e) => handleSectionChange('tr', section.id, e.target.value)}
-                                placeholder={section.placeholder}
-                                className="w-full h-24 p-3 bg-slate-50 border rounded-lg focus:ring-2 focus:border-blue-500 transition-colors border-slate-200 focus:ring-blue-500 mb-4"
-                            />
-                            
-                            <AttachmentManager
-                                attachments={trAttachments}
-                                onAttachmentsChange={setTrAttachments}
-                                onPreview={setViewingAttachment}
-                                addNotification={addNotification}
-                            />
-                        </div>
+                        );
+                    }
+                    return (
+                        <Section
+                            key={section.id}
+                            id={section.id}
+                            title={section.title}
+                            placeholder={section.placeholder}
+                            value={trSectionsContent[section.id]}
+                            onChange={(id, value) => handleSectionChange('tr', id, value)}
+                            onGenerate={() => handleGenerate('tr', section.id, section.title)}
+                            hasGen={section.hasGen}
+                            onAnalyze={() => handleRiskAnalysis('tr', section.id, section.title)}
+                            hasRiskAnalysis={section.hasRiskAnalysis}
+                            isLoading={loadingSection === section.id}
+                            onEdit={() => handleOpenEditModal('tr', section.id, section.title)}
+                            hasError={validationErrors.has(section.id)}
+                            tooltip={section.tooltip}
+                        />
                     );
-                  }
-                  return (
-                    <Section
-                        key={section.id}
-                        id={section.id}
-                        title={section.title}
-                        placeholder={section.placeholder}
-                        value={trSectionsContent[section.id]}
-                        onChange={(id, value) => handleSectionChange('tr', id, value)}
-                        onGenerate={() => handleGenerate('tr', section.id, section.title)}
-                        hasGen={section.hasGen}
-                        isLoading={loadingSection === section.id}
-                        onAnalyze={() => handleRiskAnalysis('tr', section.id, section.title)}
-                        hasRiskAnalysis={section.hasRiskAnalysis}
-                        onEdit={() => handleOpenEditModal('tr', section.id, section.title)}
-                        hasError={validationErrors.has(section.id)}
-                        tooltip={section.tooltip}
-                    />
-                  );
                 })}
+
                 <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
-                    <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
+                    <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                            <Icon name="eraser" /> Limpar
+                            <Icon name="eraser" /> Limpar Formulário
                         </button>
-                         <button 
-                            onClick={handleComplianceCheck}
-                            disabled={isCheckingCompliance}
-                            className="bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Icon name="check-double" /> {isCheckingCompliance ? 'A verificar...' : 'Verificar'}
+                        <button onClick={handleComplianceCheck} disabled={isCheckingCompliance} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                            <Icon name="check-double" /> Verificar Conformidade
                         </button>
-                        <button onClick={() => handleSaveDocument('tr')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                        <button onClick={() => handleSaveDocument('tr')} className="bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors shadow-md flex items-center justify-center gap-2">
                             <Icon name="save" /> Salvar TR
                         </button>
                     </div>
                 </div>
             </div>
-
-             <footer className="text-center mt-8 pt-6 border-t border-slate-200 text-slate-500 text-sm">
-                <a href="https://wa.me/5584999780963" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
-                    Desenvolvido por Danilo Arruda
-                </a>
-            </footer>
+            
           </main>
-      </div>
-
-      <Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title="Sobre o TR Genius" maxWidth="max-w-2xl">
-          <div className="space-y-4 text-slate-600">
-              <p>O <b>TR Genius</b> é o seu assistente inteligente para a elaboração de documentos de contratação pública, totalmente alinhado com a Nova Lei de Licitações e Contratos (Lei 14.133/21).</p>
-                <ul className="list-none space-y-2">
-                    <li className="flex items-start"><Icon name="wand-magic-sparkles" className="text-blue-500 mt-1 mr-3" /> <div><b>Geração de ETP e TR com IA:</b> Crie secções inteiras dos seus documentos com um clique, com base no contexto que fornecer.</div></li>
-                    <li className="flex items-start"><Icon name="shield-alt" className="text-blue-500 mt-1 mr-3" /> <div><b>Análise de Riscos:</b> Identifique e mitigue potenciais problemas no seu projeto antes mesmo de ele começar.</div></li>
-                    <li className="flex items-start"><Icon name="check-double" className="text-blue-500 mt-1 mr-3" /> <div><b>Verificador de Conformidade:</b> Garanta que os seus Termos de Referência estão em conformidade com a legislação vigente.</div></li>
-                    <li className="flex items-start"><Icon name="file-alt" className="text-blue-500 mt-1 mr-3" /> <div><b>Contexto com Ficheiros:</b> Faça o upload de documentos para que a IA tenha um conhecimento ainda mais aprofundado sobre a sua necessidade específica.</div></li>
+       </div>
+       {isInstallBannerVisible && installPrompt && <InstallPWA onInstall={handleInstallClick} onDismiss={handleDismissInstallBanner} />}
+       <div aria-live="polite" aria-atomic="true" className="fixed top-5 right-5 z-[100] w-full max-w-sm">
+            <div className="relative w-full">
+                {notifications.map(n => <Notification key={n.id} notification={n} onClose={removeNotification} />)}
+            </div>
+        </div>
+        <Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title="Sobre o TR Genius" maxWidth="max-w-2xl">
+            <div className="space-y-4 text-slate-700">
+                <p>O <strong>TR Genius</strong> é uma aplicação de Prova de Conceito (PoC) desenhada para assistir agentes públicos na elaboração de Estudos Técnicos Preliminares (ETP) e Termos de Referência (TR), em conformidade com a Lei nº 14.133/21.</p>
+                <p>Utilizando a API do Google Gemini, a ferramenta visa otimizar e qualificar a fase de planeamento das contratações públicas.</p>
+                <h3 className="font-bold text-lg pt-2">Funcionalidades Principais:</h3>
+                <ul className="list-disc list-inside space-y-2 pl-2">
+                    <li>Geração de conteúdo para seções de ETP e TR com base em IA.</li>
+                    <li>Análise de riscos automatizada para seções críticas.</li>
+                    <li>Base de conhecimento (RAG) para contextualizar as gerações de IA.</li>
+                    <li>Verificador de conformidade para o TR com base na Lei 14.133/21.</li>
+                    <li>Gestão e histórico de documentos salvos localmente no seu navegador.</li>
+                    <li>Exportação de documentos para PDF.</li>
+                    <li>Funcionalidade PWA para acesso offline.</li>
                 </ul>
-              <p>Esta ferramenta foi projetada para otimizar o seu tempo, aumentar a qualidade dos seus documentos e garantir a segurança jurídica das suas contratações.</p>
-          </div>
-      </Modal>
-
-      <Modal 
-        isOpen={isPreviewModalOpen} 
-        onClose={() => {
-          setIsPreviewModalOpen(false);
-          setViewingAttachment(null);
-          setSummaryState({ loading: false, content: null });
-        }} 
-        title="Pré-visualização do Documento" 
-        maxWidth="max-w-3xl"
-        footer={
-          <div className="flex justify-end">
-            <button
-              onClick={handleExportToPDF}
-              className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Icon name="file-pdf" className="mr-2" /> Exportar para PDF
-            </button>
-          </div>
-        }
-      >
-          {renderPreviewContent()}
-      </Modal>
-      
-      <Modal isOpen={isEditModalOpen} onClose={closeEditModal} title={`Editar: ${editingContent?.title}`} maxWidth="max-w-3xl">
-        {editingContent && (
-          <div>
-            <textarea
-              value={editingContent.text}
-              onChange={(e) => setEditingContent({ ...editingContent, text: e.target.value })}
-              className="w-full h-64 p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors mb-4"
-              disabled={isRefining}
-            />
-            <div className="bg-slate-100 p-4 rounded-lg mb-4">
-              <label htmlFor="refine-prompt" className="block text-sm font-semibold text-slate-600 mb-2">Peça à IA para refinar o texto acima:</label>
-              <div className="flex gap-2">
-                <input
-                  id="refine-prompt"
-                  type="text"
-                  value={refinePrompt}
-                  onChange={(e) => setRefinePrompt(e.target.value)}
-                  placeholder="Ex: 'Torne o tom mais formal' ou 'Adicione um parágrafo sobre sustentabilidade'"
-                  className="flex-grow p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-purple-500"
-                  disabled={isRefining}
-                />
-                <button
-                  onClick={handleRefineText}
-                  disabled={!refinePrompt || isRefining}
-                  className="bg-purple-600 text-white font-bold py-2 px-3 md:px-4 rounded-lg hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
-                >
-                  <Icon name="wand-magic-sparkles" className="md:mr-2" />
-                  <span className="hidden md:inline">
-                    {isRefining ? 'A refinar...' : 'Assim mas...'}
-                  </span>
-                </button>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={closeEditModal} className="bg-transparent border border-slate-400 text-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-100 transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                <Icon name="save" className="mr-2" /> Salvar Alterações
-              </button>
-            </div>
-          </div>
-        )}
-    </Modal>
-
-      <Modal isOpen={!!analysisContent.content} onClose={() => setAnalysisContent({title: '', content: null})} title={analysisContent.title} maxWidth="max-w-3xl">
-          <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
-            <ContentRenderer text={analysisContent.content} />
-          </div>
-      </Modal>
-
-      <Modal
-        isOpen={isComplianceModalOpen}
-        onClose={() => setIsComplianceModalOpen(false)}
-        title="Relatório de Conformidade - Lei 14.133/21"
-        maxWidth="max-w-3xl"
-      >
-        {isCheckingCompliance && !complianceCheckResult.startsWith("Erro") ? (
-          <div className="flex items-center justify-center flex-col gap-4 p-8">
-              <Icon name="spinner" className="fa-spin text-4xl text-blue-600" />
-              <p className="text-slate-600 font-semibold">A IA está a analisar o seu documento... Por favor, aguarde.</p>
-          </div>
-        ) : (
-          <div className="p-4 bg-slate-50 rounded-lg max-h-[60vh] overflow-y-auto">
-              <ContentRenderer text={complianceCheckResult} />
-          </div>
-        )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setIsComplianceModalOpen(false)} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">Fechar</button>
-        </div>
-      </Modal>
-
-      <Modal 
-        isOpen={!!historyModalContent} 
-        onClose={() => setHistoryModalContent(null)} 
-        title={`Histórico de: ${historyModalContent?.name}`}
-        maxWidth="max-w-6xl"
-      >
-        {historyModalContent && 'sections' in historyModalContent && <HistoryViewer document={historyModalContent} allSections={[...etpSections, ...trSections]} />}
-      </Modal>
-
-    <Modal isOpen={isNewDocModalOpen} onClose={() => setIsNewDocModalOpen(false)} title="Criar Novo Documento" maxWidth="max-w-4xl">
-      <div className="space-y-4">
-        <p className="text-slate-600 mb-6">Comece com um template pré-definido para agilizar o seu trabalho ou crie um documento em branco.</p>
-        
-        {/* ETP Templates */}
-        <div className="mb-8">
-            <h3 className="text-lg font-bold text-blue-800 mb-3 border-b-2 border-blue-200 pb-2">Estudo Técnico Preliminar (ETP)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <button 
-                    onClick={() => handleCreateNewDocument('etp')}
-                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                >
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <Icon name="file-alt" className="text-slate-500 text-xl" />
-                            <p className="font-bold text-slate-700">Documento em Branco</p>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um ETP do zero.</p>
-                    </div>
-                </button>
-                {etpTemplates.map((template, index) => (
-                    <button 
-                        key={template.id}
-                        onClick={() => handleCreateFromTemplate(template)}
-                        className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${etpTemplateColors[index % etpTemplateColors.length]}`}
-                    >
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <Icon name="file-alt" className="text-current text-xl opacity-70" />
-                                <p className="font-bold">{template.name}</p>
-                            </div>
-                            <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
-        
-        {/* Mapa de Riscos */}
-        <div className="mb-8">
-            <h3 className="text-lg font-bold text-yellow-800 mb-3 border-b-2 border-yellow-200 pb-2">Mapa de Riscos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <button 
-                    onClick={() => handleCreateNewDocument('mapa-riscos')}
-                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                >
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <Icon name="shield-alt" className="text-slate-500 text-xl" />
-                            <p className="font-bold text-slate-700">Novo Mapa de Risco</p>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um Mapa de Riscos do zero.</p>
-                    </div>
-                </button>
-            </div>
-        </div>
-
-        {/* TR Templates */}
-        <div>
-            <h3 className="text-lg font-bold text-purple-800 mb-3 border-b-2 border-purple-200 pb-2">Termo de Referência (TR)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <button 
-                    onClick={() => handleCreateNewDocument('tr')}
-                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                >
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <Icon name="file-alt" className="text-slate-500 text-xl" />
-                            <p className="font-bold text-slate-700">Documento em Branco</p>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um TR do zero.</p>
-                    </div>
-                </button>
-                {trTemplates.map((template, index) => (
-                    <button 
-                        key={template.id}
-                        onClick={() => handleCreateFromTemplate(template)}
-                        className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${trTemplateColors[index % trTemplateColors.length]}`}
-                    >
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <Icon name="wrench" className="text-current text-xl opacity-70" />
-                                <p className="font-bold">{template.name}</p>
-                            </div>
-                            <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
-      </div>
-    </Modal>
-    
-    <Modal 
-      isOpen={isRagPreviewModalOpen} 
-      onClose={() => {
-        setIsRagPreviewModalOpen(false);
-        setViewingAttachment(null);
-      }} 
-      title={`Pré-visualização: ${viewingAttachment?.name}`}
-      maxWidth="max-w-4xl"
-    >
-      { viewingAttachment && (
-        <div className="w-full h-[70vh] bg-slate-100 rounded-lg border flex items-center justify-center">
-            {isLoadingPreview ? (
-                <div className="flex flex-col items-center gap-2 text-slate-600">
-                    <Icon name="spinner" className="fa-spin text-3xl" />
-                    <span>A carregar pré-visualização...</span>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-slate-500">Versão 1.0.0 - Este é um software experimental.</p>
                 </div>
-            ) : previewContent ? (
-                <div className="w-full h-full bg-white overflow-auto rounded-lg">
-                    {previewContent.type === 'text' ? (
-                        <pre className="text-sm whitespace-pre-wrap font-mono bg-slate-50 p-6 h-full">{previewContent.content}</pre>
-                    ) : (
-                        <div className="p-2 sm:p-8 bg-slate-100 min-h-full">
-                            <div className="prose max-w-4xl mx-auto p-8 bg-white shadow-lg" dangerouslySetInnerHTML={{ __html: previewContent.content }} />
-                        </div>
-                    )}
+            </div>
+        </Modal>
+        <Modal isOpen={isPreviewModalOpen} onClose={() => { setIsPreviewModalOpen(false); setSummaryState({loading: false, content: null}); setViewingAttachment(null); }} title="Pré-visualização do Documento" maxWidth="max-w-4xl" footer={
+            <div className="flex justify-end gap-3">
+                <button onClick={() => { setIsPreviewModalOpen(false); setSummaryState({loading: false, content: null}); setViewingAttachment(null); }} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300">Fechar</button>
+                <button onClick={handleExportToPDF} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2"><Icon name="file-pdf" /> Exportar para PDF</button>
+            </div>
+        }>
+            {renderPreviewContent()}
+        </Modal>
+        <Modal isOpen={isComplianceModalOpen} onClose={() => setIsComplianceModalOpen(false)} title="Análise de Conformidade com a Lei 14.133/21" maxWidth="max-w-3xl">
+            {isCheckingCompliance ? (
+                <div className="flex items-center justify-center p-8">
+                    <Icon name="spinner" className="fa-spin text-3xl text-blue-600 mr-4" />
+                    <span className="text-slate-700">A IA está a analisar o seu documento...</span>
                 </div>
-            ) : viewingAttachment.type.startsWith('image/') ? (
-                <img src={getAttachmentDataUrl(viewingAttachment)} alt={viewingAttachment.name} className="max-w-full max-h-full object-contain" />
-            ) : viewingAttachment.type === 'application/pdf' ? (
-                <object data={getAttachmentDataUrl(viewingAttachment)} type="application/pdf" width="100%" height="100%">
-                    <p className="p-4 text-center text-slate-600">O seu navegador não suporta a pré-visualização de PDFs. <a href={getAttachmentDataUrl(viewingAttachment)} download={viewingAttachment.name} className="text-blue-600 hover:underline">Clique aqui para fazer o download.</a></p>
-                </object>
             ) : (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                    <Icon name="file-download" className="text-5xl text-slate-400 mb-4" />
-                    <p className="text-slate-700 text-lg mb-2">A pré-visualização não está disponível para este tipo de ficheiro.</p>
-                    <p className="text-slate-500 mb-6 text-sm">({viewingAttachment.type})</p>
-                    <a 
-                        href={getAttachmentDataUrl(viewingAttachment)} 
-                        download={viewingAttachment.name}
-                        className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Icon name="download" />
-                        Fazer Download
-                    </a>
-                </div>
+                <ContentRenderer text={complianceCheckResult} />
             )}
-        </div>
-      )}
-    </Modal>
-    
-    <Modal
-        isOpen={!!generatedContentModal}
-        onClose={() => setGeneratedContentModal(null)}
-        title={`Conteúdo Gerado por IA para: ${generatedContentModal?.title}`}
-        maxWidth="max-w-3xl"
-        footer={
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setGeneratedContentModal(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition-colors">
-              Cancelar
-            </button>
-            <button
-              onClick={() => {
-                if (generatedContentModal) {
-                  handleSectionChange(generatedContentModal.docType, generatedContentModal.sectionId, generatedContentModal.content);
-                  setGeneratedContentModal(null);
-                  addNotification('Sucesso', 'O conteúdo foi inserido na seção.', 'success');
-                }
-              }}
-              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Icon name="check" className="mr-2" /> Usar este Texto
-            </button>
-          </div>
-        }
-      >
-        <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
-            {generatedContentModal && <ContentRenderer text={generatedContentModal.content} />}
-        </div>
-      </Modal>
-
-      {/* --- Modals for Risk Map --- */}
-      <Modal isOpen={!!editingRevision} onClose={() => setEditingRevision(null)} title={editingRevision?.id ? 'Editar Revisão' : 'Adicionar Revisão'}>
-        {editingRevision && (
-            <div className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Data</label>
-                    <input type="date" value={editingRevision.date} onChange={e => setEditingRevision({...editingRevision, date: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Versão</label>
-                    <input type="text" value={editingRevision.version} onChange={e => setEditingRevision({...editingRevision, version: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Descrição</label>
-                    <input type="text" value={editingRevision.description} onChange={e => setEditingRevision({...editingRevision, description: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Fase</label>
-                     <select value={editingRevision.phase} onChange={e => setEditingRevision({...editingRevision, phase: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
-                        <option value="PC">PC - Planejamento da Contratação</option>
-                        <option value="SF">SF - Seleção de Fornecedores</option>
-                        <option value="GC">GC - Gestão do Contrato</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Autor</label>
-                    <input type="text" value={editingRevision.author} onChange={e => setEditingRevision({...editingRevision, author: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                    <button onClick={() => setEditingRevision(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                    <button onClick={handleSaveRevision} className="bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
-                </div>
-            </div>
-        )}
-      </Modal>
-
-      <Modal isOpen={!!editingRisk} onClose={() => setEditingRisk(null)} title={riskMapContent.risks.some(r => r.id === editingRisk?.id) ? 'Editar Risco' : 'Adicionar Risco'} maxWidth="max-w-4xl">
-         {editingRisk && (
-            <div className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">ID do Risco</label>
-                    <input type="text" value={editingRisk.id} disabled className="mt-1 block w-full rounded-md border-slate-300 bg-slate-100 shadow-sm"/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Risco</label>
-                    <textarea value={editingRisk.risk} onChange={e => handleEditingRiskChange('risk', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500" rows={3}/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Relacionado a</label>
-                    <select value={editingRisk.relatedTo} onChange={e => handleEditingRiskChange('relatedTo', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
-                        <option>Planejamento da Contratação</option>
-                        <option>Seleção do Fornecedor</option>
-                        <option>Gestão Contratual</option>
-                        <option>Gestão Contratual e Solução Tecnológica</option>
-                    </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">Probabilidade (P)</label>
-                        <select value={editingRisk.probability} onChange={e => handleEditingRiskNumberChange('probability', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
-                            <option value={5}>5 (Baixa)</option>
-                            <option value={10}>10 (Média)</option>
-                            <option value={15}>15 (Alta)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700">Impacto (I)</label>
-                        <select value={editingRisk.impact} onChange={e => handleEditingRiskNumberChange('impact', e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
-                            <option value={5}>5 (Baixo)</option>
-                            <option value={10}>10 (Média)</option>
-                            <option value={15}>15 (Alto)</option>
-                        </select>
-                    </div>
-                </div>
-                {/* Campos de análise detalhada podem ser adicionados aqui no futuro */}
-                <div className="flex justify-end gap-3 pt-4">
-                    <button onClick={() => setEditingRisk(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                    <button onClick={handleSaveRisk} className="bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Salvar Risco</button>
-                </div>
-            </div>
-         )}
-      </Modal>
-      
-      <Modal isOpen={!!editingFollowUp} onClose={() => setEditingFollowUp(null)} title={editingFollowUp?.id ? 'Editar Acompanhamento' : 'Adicionar Acompanhamento'}>
-        {editingFollowUp && (
-             <div className="space-y-4">
-                 <div>
-                    <label className="block text-sm font-medium text-slate-700">Data</label>
-                    <input type="date" value={editingFollowUp.date} onChange={e => setEditingFollowUp({...editingFollowUp, date: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">ID do Risco</label>
-                     <select value={editingFollowUp.riskId} onChange={e => setEditingFollowUp({...editingFollowUp, riskId: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 bg-white p-2">
-                         <option value="">Selecione um Risco</option>
-                        {riskMapContent.risks.map(risk => <option key={risk.id} value={risk.id}>{risk.id} - {risk.risk}</option>)}
-                    </select>
-                </div>
-                 <div>
-                    <label className="block text-sm font-medium text-slate-700">ID da Ação</label>
-                    <input type="text" value={editingFollowUp.actionId} onChange={e => setEditingFollowUp({...editingFollowUp, actionId: e.target.value})} placeholder="Ex: P1, C2" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Registro e Acompanhamento</label>
-                    <textarea value={editingFollowUp.notes} onChange={e => setEditingFollowUp({...editingFollowUp, notes: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500" rows={4}/>
-                </div>
-                 <div className="flex justify-end gap-3 pt-4">
-                    <button onClick={() => setEditingFollowUp(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                    <button onClick={handleSaveFollowUp} className="bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
-                </div>
-             </div>
-        )}
-      </Modal>
-
-
-    {/* Floating Action Button for Mobile */}
-    <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(10.5rem + env(safe-area-inset-bottom))' }}>
-      <button
-        onClick={() => setIsNewDocModalOpen(true)}
-        className="bg-pink-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110"
-        title="Criar Novo Documento"
-        aria-haspopup="dialog"
-      >
-        <Icon name="plus" />
-      </button>
-    </div>
-
-    {installPrompt && isInstallBannerVisible && (
-        <InstallPWA
-            onInstall={handleInstallClick}
-            onDismiss={handleDismissInstallBanner}
-        />
-    )}
-
-    {/* Notifications Container */}
-    <div className="fixed top-5 right-5 z-[100] w-full max-w-sm">
-        {notifications.map((notification) => (
-          <Notification
-            key={notification.id}
-            notification={notification}
-            onClose={removeNotification}
-          />
-        ))}
-    </div>
-
-    {/* Mobile Bottom Navigation */}
-    <div 
-      className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around bg-white/80 p-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] backdrop-blur-md border-t border-slate-200/80 z-20"
-      style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
-    >
-        <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center rounded-full w-20 h-14 transition-colors ${activeView === 'etp' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
-            <Icon name="file-alt" className="text-2xl mb-0.5" />
-            <span className="text-xs font-semibold">ETP</span>
-        </button>
-        <button onClick={() => switchView('mapa-riscos')} className={`flex flex-col items-center justify-center rounded-full w-20 h-14 transition-colors ${activeView === 'mapa-riscos' ? 'bg-yellow-50 text-yellow-600' : 'text-slate-500 hover:bg-slate-100'}`}>
-            <Icon name="shield-alt" className="text-2xl mb-0.5" />
-            <span className="text-xs font-semibold">Riscos</span>
-        </button>
-        <button onClick={() => switchView('tr')} className={`flex flex-col items-center justify-center rounded-full w-20 h-14 transition-colors ${activeView === 'tr' ? 'bg-purple-50 text-purple-600' : 'text-slate-500 hover:bg-slate-100'}`}>
-            <Icon name="gavel" className="text-2xl mb-0.5" />
-            <span className="text-xs font-semibold">TR</span>
-        </button>
-        <button onClick={() => setIsSidebarOpen(true)} className="flex flex-col items-center justify-center rounded-full w-20 h-14 text-slate-500 hover:bg-slate-100 transition-colors">
-            <Icon name="bars" className="text-2xl mb-0.5" />
-            <span className="text-xs font-semibold">Menu</span>
-        </button>
-    </div>
+        </Modal>
     </div>
   );
-};
-
+}
+// Fix: Add default export for the App component to resolve the import error.
 export default App;
