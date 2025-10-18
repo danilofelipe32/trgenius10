@@ -838,7 +838,7 @@ ${content}
       etp: [
         { id: 'etp-2-necessidade', name: '2. Descrição da Necessidade da Contratação' },
         { id: 'etp-6-estimativa-quantidades', name: '6. Estimativas das Quantidades a serem Contratadas', regex: /\d+/, errorMessage: 'O campo "6. Estimativas das Quantidades" deve conter números.' },
-        { id: 'etp-7-estimativa-valor', name: '7. Estimativa do Valor da Contratação', regex: /^(R\$\s*)?(\d{1,3}(\.\d{3})*|\d+)(,\d{2})?$/, errorMessage: 'O campo "7. Estimativa do Valor" deve conter um valor monetário válido (ex: 1000,00 ou R$ 1.000,00).' },
+        { id: 'etp-7-estimativa-valor', name: '7. Estimativa do Valor da Contratação' },
         { id: 'etp-8-justificativa-parcelamento', name: '8. Justificativa para o Parcelamento ou não da Solução' },
         { id: 'etp-13-viabilidade', name: '13. Declaração de Viabilidade da Contratação' },
       ],
@@ -2065,7 +2065,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
+                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2155,7 +2155,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6">
+                <div className="fixed bottom-[5.5rem] md:bottom-auto left-0 right-0 z-10 bg-white/90 backdrop-blur-sm p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
                     <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2456,7 +2456,7 @@ Solicitação do usuário: "${refinePrompt}"
       </Modal>
 
     {/* Floating Action Button for Mobile */}
-    <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(9rem + env(safe-area-inset-bottom) + 1.5rem)' }}>
+    <div className="md:hidden fixed right-6 z-40" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
       <button
         onClick={() => setIsNewDocModalOpen(true)}
         className="bg-pink-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-pink-700 transition-transform transform hover:scale-110"
@@ -2487,8 +2487,8 @@ Solicitação do usuário: "${refinePrompt}"
 
     {/* Mobile Bottom Navigation */}
     <div 
-      className="md:hidden fixed left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-white/80 p-1.5 shadow-lg backdrop-blur-md border border-slate-200/80 z-20"
-      style={{ bottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
+      className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around bg-white/80 p-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] backdrop-blur-md border-t border-slate-200/80 z-20"
+      style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
     >
         <button onClick={() => switchView('etp')} className={`flex flex-col items-center justify-center rounded-full w-24 h-14 transition-colors ${activeView === 'etp' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
             <Icon name="file-alt" className="text-2xl mb-0.5" />
