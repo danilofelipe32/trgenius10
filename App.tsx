@@ -2394,23 +2394,23 @@ Solicitação do usuário: "${refinePrompt}"
                   </div>
                 </div>
                 <div className="flex-shrink-0 flex items-center gap-4">
-                    <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-600" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
-                        <Icon name="globe-americas" />
-                        <span className="hidden sm:inline">Pesquisa Web</span>
+                    <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-3 text-base font-medium text-slate-700" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
+                        <Icon name="globe-americas" className="text-slate-500" />
+                        <span>Pesquisa Web</span>
                         <div className="relative">
                             <input id="web-search-toggle" type="checkbox" className="sr-only peer" checked={useWebSearch} onChange={() => setUseWebSearch(!useWebSearch)} />
-                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <div className="w-14 h-8 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
                         </div>
                     </label>
                     {isOnline ? (
-                        <div className="flex items-center justify-center w-8 h-8 md:w-auto md:px-2 md:py-1 md:gap-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full" title="A ligação à Internet está ativa.">
+                        <div className="flex items-center gap-2 bg-green-100 text-green-700 text-sm font-bold rounded-full px-3 py-1.5" title="A ligação à Internet está ativa.">
                             <Icon name="wifi" />
-                            <span className="hidden md:inline">Online</span>
+                            <span>Online</span>
                         </div>
                     ) : (
-                        <div className="flex items-center justify-center w-8 h-8 md:w-auto md:px-2 md:py-1 md:gap-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full" title="Sem ligação à Internet. As funcionalidades online estão desativadas.">
+                        <div className="flex items-center gap-2 bg-yellow-100 text-yellow-800 text-sm font-bold rounded-full px-3 py-1.5" title="Sem ligação à Internet. As funcionalidades online estão desativadas.">
                             <Icon name="wifi-slash" />
-                            <span className="hidden md:inline">Offline</span>
+                            <span>Offline</span>
                         </div>
                     )}
                 </div>
@@ -2462,8 +2462,8 @@ Solicitação do usuário: "${refinePrompt}"
                         hasGen={section.hasGen}
                         onAnalyze={() => handleRiskAnalysis('etp', section.id, section.title)}
                         hasRiskAnalysis={section.hasRiskAnalysis}
-                        isLoading={loadingSection === section.id}
                         onEdit={() => handleOpenEditModal('etp', section.id, section.title)}
+                        isLoading={loadingSection === section.id}
                         hasError={validationErrors.has(section.id)}
                         tooltip={section.tooltip}
                     />
