@@ -2355,6 +2355,26 @@ Solicitação do usuário: "${refinePrompt}"
                 <h2 className="text-2xl font-bold text-slate-800">
                     {viewTitles[activeView]}
                 </h2>
+                <div className="flex items-center gap-4">
+                     <label htmlFor="web-search-toggle-mobile" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-700">
+                        <Icon name="globe-americas" className="text-slate-500" />
+                        <div className="relative">
+                            <input id="web-search-toggle-mobile" type="checkbox" className="sr-only peer" checked={useWebSearch} onChange={() => setUseWebSearch(!useWebSearch)} />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </div>
+                    </label>
+                     {isOnline ? (
+                        <div className="flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-full px-2.5 py-1" title="A ligação à Internet está ativa.">
+                            <Icon name="wifi" />
+                            <span>Online</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full px-2.5 py-1" title="Sem ligação à Internet. As funcionalidades online estão desativadas.">
+                            <Icon name="wifi-slash" />
+                            <span>Offline</span>
+                        </div>
+                    )}
+                </div>
              </div>
              <header className="hidden md:flex flex-wrap justify-between items-center gap-4 mb-8">
                 <div className="flex-grow">
