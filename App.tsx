@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, Attachment, DocumentVersion, Priority, Template, Notification as NotificationType } from './types';
+import { 
+    Section as SectionType, SavedDocument, UploadedFile, DocumentType, PreviewContext, 
+    Attachment, DocumentVersion, Priority, Template, Notification as NotificationType,
+    RevisionHistoryRow, RiskIdentificationRow, RiskEvaluationBlock, RiskMonitoringRow, RiskAction 
+} from './types';
 import * as storage from './services/storageService';
 import { callGemini } from './services/geminiService';
 import { processSingleUploadedFile, chunkText } from './services/ragService';
@@ -9,7 +13,7 @@ import Login from './components/Login';
 import { AttachmentManager } from './components/AttachmentManager';
 import InstallPWA from './components/InstallPWA';
 import { HistoryViewer } from './components/HistoryViewer';
-import { etpSections, trSections } from './config/sections';
+import { etpSections, trSections, riskMapSections } from './config/sections';
 import { etpTemplates, trTemplates } from './config/templates';
 
 declare const mammoth: any;
@@ -436,13 +440,24 @@ const App: React.FC = () => {
   // State for documents
   const [savedETPs, setSavedETPs] = useState<SavedDocument[]>([]);
   const [savedTRs, setSavedTRs] = useState<SavedDocument[]>([]);
+  const [savedRiskMaps, setSavedRiskMaps] = useState<SavedDocument[]>([]);
+  
   const [etpSectionsContent, setEtpSectionsContent] = useState<Record<string, string>>({});
   const [trSectionsContent, setTrSectionsContent] = useState<Record<string, string>>({});
+  const [riskMapSectionsContent, setRiskMapSectionsContent] = useState<Record<string, string>>({});
+
+  // Table states for Risk Map
+  const [revisionHistory, setRevisionHistory] = useState<RevisionHistoryRow[]>([]);
+  const [riskIdentification, setRiskIdentification] = useState<RiskIdentificationRow[]>([]);
+  const [riskEvaluation, setRiskEvaluation] = useState<RiskEvaluationBlock[]>([]);
+  const [riskMonitoring, setRiskMonitoring] = useState<RiskMonitoringRow[]>([]);
+
   const [etpAttachments, setEtpAttachments] = useState<Attachment[]>([]);
   const [trAttachments, setTrAttachments] = useState<Attachment[]>([]);
   const [loadedEtpForTr, setLoadedEtpForTr] = useState<{ id: number; name: string; content: string } | null>(null);
   const [currentEtpPriority, setCurrentEtpPriority] = useState<Priority>('medium');
   const [currentTrPriority, setCurrentTrPriority] = useState<Priority>('medium');
+  const [currentRiskMapPriority, setCurrentRiskMapPriority] = useState<Priority>('medium');
 
 
   // State for API and files
@@ -453,7 +468,7 @@ const App: React.FC = () => {
 
   // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
-  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, knowledgeBase: true });
+  const [openSidebarSections, setOpenSidebarSections] = useState({ etps: true, trs: true, riskMaps: true, knowledgeBase: true });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewContext, setPreviewContext] = useState<PreviewContext>({ type: null, id: null });
@@ -553,17 +568,30 @@ const App: React.FC = () => {
         const etps = storage.getSavedETPs();
         setSavedETPs(etps);
         setSavedTRs(storage.getSavedTRs());
+        const riskMaps = storage.getSavedRiskMaps();
+        setSavedRiskMaps(riskMaps);
 
         const etpFormState = storage.loadFormState('etpFormState') as Record<string, string> || {};
         setEtpSectionsContent(etpFormState);
+        
+        const trFormState = storage.loadFormState('trFormState') as Record<string, string> || {};
+        setTrSectionsContent(trFormState);
+        
+        const riskMapFormState = storage.loadFormState('riskMapFormState') as any || {};
+        setRiskMapSectionsContent(riskMapFormState.sections || {});
+        if (riskMapFormState.riskMapData) {
+            setRevisionHistory(riskMapFormState.riskMapData.revisionHistory || []);
+            setRiskIdentification(riskMapFormState.riskMapData.riskIdentification || []);
+            setRiskEvaluation(riskMapFormState.riskMapData.riskEvaluation || []);
+            setRiskMonitoring(riskMapFormState.riskMapData.riskMonitoring || []);
+        }
+
 
         // Find the last active ETP to load its attachments
         const lastActiveEtp = etps.find(etp => JSON.stringify(etp.sections) === JSON.stringify(etpFormState));
         if (lastActiveEtp) {
             setEtpAttachments(lastActiveEtp.attachments || []);
         }
-
-        setTrSectionsContent(storage.loadFormState('trFormState') as Record<string, string> || {});
         
         const userFiles = storage.getStoredFiles();
         setUploadedFiles(userFiles);
@@ -629,13 +657,22 @@ const App: React.FC = () => {
           setAutoSaveStatus('Salvando...');
           storage.saveFormState('etpFormState', etpSectionsContent);
           storage.saveFormState('trFormState', trSectionsContent);
+          storage.saveFormState('riskMapFormState', {
+            sections: riskMapSectionsContent,
+            riskMapData: {
+                revisionHistory,
+                riskIdentification,
+                riskEvaluation,
+                riskMonitoring
+            }
+          });
           setTimeout(() => setAutoSaveStatus('Salvo com sucesso'), 500);
       }, 2000); // 2 seconds after user stops typing
 
       return () => {
           if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
       };
-  }, [etpSectionsContent, trSectionsContent]);
+  }, [etpSectionsContent, trSectionsContent, riskMapSectionsContent, revisionHistory, riskIdentification, riskEvaluation, riskMonitoring]);
 
   // Periodic save every 30 seconds
   useEffect(() => {
@@ -644,6 +681,7 @@ const App: React.FC = () => {
           // Use refs to get the latest state, avoiding stale closures
           storage.saveFormState('etpFormState', etpContentRef.current);
           storage.saveFormState('trFormState', trContentRef.current);
+          // Auto-save for risk map is handled by the debounced effect
           setTimeout(() => setAutoSaveStatus('Salvo com sucesso'), 500);
       }, 30000);
 
@@ -710,8 +748,9 @@ const App: React.FC = () => {
     }
 
     setAutoSaveStatus('A escrever...');
-    const updateFn = docType === 'etp' ? setEtpSectionsContent : setTrSectionsContent;
-    updateFn(prev => ({ ...prev, [id]: value }));
+    if (docType === 'etp') setEtpSectionsContent(prev => ({ ...prev, [id]: value }));
+    else if (docType === 'tr') setTrSectionsContent(prev => ({ ...prev, [id]: value }));
+    else if (docType === 'risk-map') setRiskMapSectionsContent(prev => ({ ...prev, [id]: value }));
   };
 
   const getRagContext = useCallback(async (query: string): Promise<string> => {
@@ -778,7 +817,7 @@ const App: React.FC = () => {
       });
       const ragContext = await getRagContext(title);
       prompt = `Você é um especialista em planeamento de contratações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Estudo Técnico Preliminar (ETP).\n\nUse o seguinte contexto do formulário como base:\n${context}\n${ragContext}\n\nGere um texto detalhado e tecnicamente correto para a seção "${title}", utilizando a Lei 14.133/21 como referência principal e incorporando as informações do formulário e dos documentos de apoio.`;
-    } else { // TR
+    } else if (docType === 'tr') { // TR
       if (!loadedEtpForTr) {
         addNotification('info', 'Atenção', 'Por favor, carregue um ETP para usar como contexto antes de gerar o TR.');
         setLoadingSection(null);
@@ -925,7 +964,7 @@ ${content}
     const sections = docType === 'etp' ? etpSectionsContent : trSectionsContent;
     
     const validationMessages = validateForm(docType, sections);
-    if (validationMessages.length > 0) {
+    if (docType !== 'risk-map' && validationMessages.length > 0) {
         addNotification(
             'error',
             "Campos Obrigatórios",
@@ -939,39 +978,37 @@ ${content}
     
     if (docType === 'etp') {
       const newDoc: SavedDocument = {
-        id: Date.now(),
-        name,
-        createdAt: now,
-        updatedAt: now,
-        sections: { ...sections },
-        attachments: etpAttachments,
-        history: [],
-        priority: currentEtpPriority,
+        id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...sections },
+        attachments: etpAttachments, history: [], priority: currentEtpPriority,
       };
       const updatedETPs = [...savedETPs, newDoc];
       setSavedETPs(updatedETPs);
       storage.saveETPs(updatedETPs);
       addNotification("success", "Sucesso", `ETP "${name}" guardado com sucesso!`);
-    } else {
+    } else if (docType === 'tr') {
       const newDoc: SavedDocument = {
-        id: Date.now(),
-        name,
-        createdAt: now,
-        updatedAt: now,
-        sections: { ...sections },
-        attachments: trAttachments,
-        history: [],
-        priority: currentTrPriority,
+        id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...sections },
+        attachments: trAttachments, history: [], priority: currentTrPriority,
       };
       const updatedTRs = [...savedTRs, newDoc];
       setSavedTRs(updatedTRs);
       storage.saveTRs(updatedTRs);
       addNotification("success", "Sucesso", `TR "${name}" guardado com sucesso!`);
+    } else if (docType === 'risk-map') {
+        const newDoc: SavedDocument = {
+            id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...riskMapSectionsContent },
+            priority: currentRiskMapPriority, history: [],
+            riskMapData: { revisionHistory, riskIdentification, riskEvaluation, riskMonitoring }
+        };
+        const updatedMaps = [...savedRiskMaps, newDoc];
+        setSavedRiskMaps(updatedMaps);
+        storage.saveRiskMaps(updatedMaps);
+        addNotification("success", "Sucesso", `Mapa de Risco "${name}" guardado com sucesso!`);
     }
   };
   
   const handleLoadDocument = (docType: DocumentType, id: number) => {
-    const docs = docType === 'etp' ? savedETPs : savedTRs;
+    const docs = docType === 'etp' ? savedETPs : docType === 'tr' ? savedTRs : savedRiskMaps;
     const docToLoad = docs.find(doc => doc.id === id);
     if(docToLoad) {
       if (docType === 'etp') {
@@ -979,13 +1016,23 @@ ${content}
         setEtpAttachments(docToLoad.attachments || []);
         setCurrentEtpPriority(docToLoad.priority || 'medium');
         storage.saveFormState('etpFormState', docToLoad.sections);
-      } else {
+      } else if (docType === 'tr') {
         setTrSectionsContent(docToLoad.sections);
         setTrAttachments(docToLoad.attachments || []);
         setCurrentTrPriority(docToLoad.priority || 'medium');
         storage.saveFormState('trFormState', docToLoad.sections);
+      } else if (docType === 'risk-map') {
+        setRiskMapSectionsContent(docToLoad.sections);
+        setCurrentRiskMapPriority(docToLoad.priority || 'medium');
+        const data = docToLoad.riskMapData;
+        setRevisionHistory(data?.revisionHistory || []);
+        setRiskIdentification(data?.riskIdentification || []);
+        setRiskEvaluation(data?.riskEvaluation || []);
+        setRiskMonitoring(data?.riskMonitoring || []);
+        storage.saveFormState('riskMapFormState', { sections: docToLoad.sections, riskMapData: data });
       }
-      addNotification('success', 'Documento Carregado', `O ${docType.toUpperCase()} "${docToLoad.name}" foi carregado.`);
+
+      addNotification('success', 'Documento Carregado', `O ${docType.toUpperCase().replace('-', ' ')} "${docToLoad.name}" foi carregado.`);
       setActiveView(docType);
       if (window.innerWidth < 768) setIsSidebarOpen(false);
     }
@@ -996,10 +1043,14 @@ ${content}
       const updated = savedETPs.filter(doc => doc.id !== id);
       setSavedETPs(updated);
       storage.saveETPs(updated);
-    } else {
+    } else if (docType === 'tr') {
       const updated = savedTRs.filter(doc => doc.id !== id);
       setSavedTRs(updated);
       storage.saveTRs(updated);
+    } else if (docType === 'risk-map') {
+      const updated = savedRiskMaps.filter(doc => doc.id !== id);
+      setSavedRiskMaps(updated);
+      storage.saveRiskMaps(updated);
     }
     addNotification('success', 'Sucesso', `O documento foi apagado.`);
   };
@@ -1026,20 +1077,20 @@ ${content}
         const updated = updateDocs(savedETPs);
         setSavedETPs(updated);
         storage.saveETPs(updated);
-    } else { // type === 'tr'
+    } else if (type === 'tr') {
         const updated = updateDocs(savedTRs);
         setSavedTRs(updated);
         storage.saveTRs(updated);
+    } else if (type === 'risk-map') {
+        const updated = updateDocs(savedRiskMaps);
+        setSavedRiskMaps(updated);
+        storage.saveRiskMaps(updated);
     }
 
     setEditingDoc(null);
   };
 
   const handleEditorBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    // When focus moves from an element inside the div to another element inside the same div,
-    // relatedTarget will be one of the children.
-    // If focus moves outside the div, relatedTarget will be null or an element outside the div.
-    // `contains` will correctly handle both cases.
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       handleUpdateDocumentDetails();
     }
@@ -1049,7 +1100,6 @@ ${content}
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // FIX: Explicitly type `fileList` as `File[]` to resolve type inference issues with `Array.from(FileList)`.
     const fileList: File[] = Array.from(files);
 
     const filesToProcess = fileList.map(file => ({
@@ -1192,9 +1242,7 @@ ${content}
         }
 
         const trOtherSectionsContext = Object.entries(currentSections)
-            // FIX: Safely call .trim() by ensuring value is a string.
             .filter(([key, value]) => key !== sectionId && value && String(value || '').trim())
-            // FIX: Safely call .trim() by ensuring value is a string.
             .map(([key, value]) => `Contexto da Seção do TR (${trSections.find(s => s.id === key)?.title}):\n${String(value || '').trim()}`)
             .join('\n\n');
         
@@ -1203,7 +1251,6 @@ ${content}
     } else if (docType === 'etp') {
         primaryContext = Object.entries(currentSections)
             .filter(([key, value]) => key !== sectionId && value)
-            // FIX: Safely call .trim() by ensuring value is a string.
             .map(([key, value]) => `Contexto Adicional (${etpSections.find(s => s.id === key)?.title}): ${String(value || '').trim()}`)
             .join('\n');
     }
@@ -1304,7 +1351,6 @@ Solicitação do usuário: "${refinePrompt}"
     const docToExport = docs.find(d => d.id === id);
 
     if (docToExport) {
-        // FIX: Define `allSections` based on the document type before using it.
         const allSections = type === 'etp' ? etpSections : trSections;
         exportDocumentToPDF(docToExport, allSections);
     } else {
@@ -1318,7 +1364,7 @@ Solicitação do usuário: "${refinePrompt}"
         setEtpAttachments([]);
         setCurrentEtpPriority('medium');
         storage.saveFormState('etpFormState', {});
-    } else {
+    } else if (docType === 'tr') {
         setTrSectionsContent({});
         setTrAttachments([]);
         setCurrentTrPriority('medium');
@@ -1326,6 +1372,14 @@ Solicitação do usuário: "${refinePrompt}"
         const etpSelector = document.getElementById('etp-selector') as HTMLSelectElement;
         if (etpSelector) etpSelector.value = "";
         storage.saveFormState('trFormState', {});
+    } else if (docType === 'risk-map') {
+        setRiskMapSectionsContent({});
+        setCurrentRiskMapPriority('medium');
+        setRevisionHistory([]);
+        setRiskIdentification([]);
+        setRiskEvaluation([]);
+        setRiskMonitoring([]);
+        storage.saveFormState('riskMapFormState', {});
     }
     addNotification('info', 'Formulário Limpo', `O formulário do ${docType.toUpperCase()} foi limpo.`);
   }, [addNotification]);
@@ -1549,7 +1603,7 @@ Solicitação do usuário: "${refinePrompt}"
     setValidationErrors(new Set());
   }, []);
 
-  const toggleSidebarSection = (section: 'etps' | 'trs' | 'knowledgeBase') => {
+  const toggleSidebarSection = (section: 'etps' | 'trs' | 'riskMaps' | 'knowledgeBase') => {
     setOpenSidebarSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
   
@@ -1648,8 +1702,9 @@ Solicitação do usuário: "${refinePrompt}"
     return {
       etps: filterByPriority(savedETPs),
       trs: filterByPriority(savedTRs),
+      riskMaps: filterByPriority(savedRiskMaps),
     };
-  }, [savedETPs, savedTRs, priorityFilter]);
+  }, [savedETPs, savedTRs, savedRiskMaps, priorityFilter]);
 
   const searchedDocs = useMemo(() => {
     const filterBySearch = (docs: SavedDocument[]) => {
@@ -1662,10 +1717,11 @@ Solicitação do usuário: "${refinePrompt}"
     return {
       etps: filterBySearch(priorityFilteredDocs.etps),
       trs: filterBySearch(priorityFilteredDocs.trs),
+      riskMaps: filterBySearch(priorityFilteredDocs.riskMaps),
     };
   }, [priorityFilteredDocs, searchTerm]);
 
-  const { displayedETPs, displayedTRs } = useMemo(() => {
+  const { displayedETPs, displayedTRs, displayedRiskMaps } = useMemo(() => {
     const sortDocs = (docs: SavedDocument[]) => {
       return [...docs].sort((a, b) => {
         if (sortOrder === 'name') {
@@ -1680,7 +1736,8 @@ Solicitação do usuário: "${refinePrompt}"
     
     return {
       displayedETPs: sortDocs(searchedDocs.etps),
-      displayedTRs: sortDocs(searchedDocs.trs)
+      displayedTRs: sortDocs(searchedDocs.trs),
+      displayedRiskMaps: sortDocs(searchedDocs.riskMaps),
     };
   }, [searchedDocs, sortOrder]);
   
@@ -1931,6 +1988,78 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                    </div>
                 </div>
+
+                 {/* Accordion Section: Risk Maps */}
+                <div className="py-1">
+                  <button onClick={() => toggleSidebarSection('riskMaps')} className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-orange-50 transition-colors">
+                    <div className="flex items-center">
+                        <Icon name="exclamation-triangle" className="text-orange-500 w-5 text-center" />
+                        <h3 className="text-sm font-semibold text-orange-600 uppercase tracking-wider ml-2">Mapas de Risco</h3>
+                    </div>
+                    <Icon name={openSidebarSections.riskMaps ? 'chevron-up' : 'chevron-down'} className="text-slate-400 transition-transform" />
+                  </button>
+                  <div className={`transition-all duration-500 ease-in-out overflow-hidden ${openSidebarSections.riskMaps ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                    <div className="space-y-2">
+                      {displayedRiskMaps.length > 0 ? (
+                        <ul className="space-y-2">
+                          {displayedRiskMaps.map(map => (
+                             <li key={map.id} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
+                                {editingDoc?.type === 'risk-map' && editingDoc?.id === map.id ? (
+                                    <div className="w-full flex items-center gap-2" onBlur={handleEditorBlur}>
+                                        <div className="flex-grow">
+                                            <input
+                                                type="text"
+                                                value={editingDoc.name}
+                                                onChange={(e) => setEditingDoc({ ...editingDoc, name: e.target.value })}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleUpdateDocumentDetails();
+                                                    if (e.key === 'Escape') setEditingDoc(null);
+                                                }}
+                                                className="text-sm font-medium w-full bg-white border border-blue-500 rounded px-1 py-0.5"
+                                                autoFocus
+                                            />
+                                            <select
+                                                value={editingDoc.priority}
+                                                onChange={(e) => setEditingDoc(prev => prev ? { ...prev, priority: e.target.value as Priority } : null)}
+                                                className="w-full mt-1 p-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 bg-white"
+                                            >
+                                                <option value="high">{priorityLabels.high}</option>
+                                                <option value="medium">{priorityLabels.medium}</option>
+                                                <option value="low">{priorityLabels.low}</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={handleUpdateDocumentDetails} className="w-6 h-6 text-green-600 hover:text-green-800" title="Salvar"><Icon name="check" /></button>
+                                            <button onClick={() => setEditingDoc(null)} className="w-6 h-6 text-red-600 hover:text-red-800" title="Cancelar"><Icon name="times" /></button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                  <div className="flex items-center justify-between w-full gap-4">
+                                      <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                                          <PriorityIndicator priority={map.priority} />
+                                          <span className="text-sm font-medium text-slate-700 truncate" title={map.name}>{map.name}</span>
+                                      </div>
+                                      <div className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0" title={map.updatedAt ? `Atualizado em: ${new Date(map.updatedAt).toLocaleString('pt-BR')}` : ''}>
+                                          {map.updatedAt && (
+                                            <span>{new Date(map.updatedAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}</span>
+                                          )}
+                                      </div>
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleStartEditing('risk-map', map)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
+                                        <button onClick={() => handleLoadDocument('risk-map', map.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
+                                        <button onClick={() => { setPreviewContext({ type: 'risk-map', id: map.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
+                                        <button onClick={() => displayDocumentHistory(map)} className="w-6 h-6 text-slate-500 hover:text-purple-600" title="Ver Histórico"><Icon name="history" /></button>
+                                        <button onClick={() => handleDeleteDocument('risk-map', map.id)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
+                                      </div>
+                                  </div>
+                                )}
+                              </li>
+                          ))}
+                        </ul>
+                      ) : <p className="text-sm text-slate-400 italic px-2">Nenhum Mapa de Risco corresponde ao filtro.</p>}
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Accordion Section: Base de Conhecimento */}
                 <div className="py-1 border-t mt-2 pt-3">
@@ -2036,6 +2165,16 @@ Solicitação do usuário: "${refinePrompt}"
                         }`}
                       >
                         Gerador de ETP
+                      </button>
+                      <button
+                        onClick={() => switchView('risk-map')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                           activeView === 'risk-map'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        Mapa de Riscos
                       </button>
                       <button
                         onClick={() => switchView('tr')}
@@ -2241,6 +2380,10 @@ Solicitação do usuário: "${refinePrompt}"
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <div className={`${activeView === 'risk-map' ? 'block' : 'hidden'}`}>
+                {/* Content for Mapa de Riscos */}
             </div>
 
              <footer className="text-center mt-8 pt-6 border-t border-slate-200 text-slate-500 text-sm">

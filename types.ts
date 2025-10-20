@@ -22,11 +22,67 @@ export interface Attachment {
   description?: string;
 }
 
+// --- Risk Map Specific Types ---
+export interface RevisionHistoryRow {
+  id: number;
+  date: string;
+  version: string;
+  description: string;
+  phase: string;
+  author: string;
+}
+
+export interface RiskIdentificationRow {
+  id: number;
+  riskId: string;
+  risk: string;
+  relatedTo: string;
+  probability: string;
+  impact: string;
+}
+
+export interface RiskAction {
+  id: number;
+  actionId: string;
+  action: string;
+  responsible: string;
+}
+
+export interface RiskEvaluationBlock {
+  id: number;
+  riskId: string;
+  riskDescription: string;
+  probability: string;
+  impact: string;
+  damage: string;
+  treatment: string;
+  preventiveActions: RiskAction[];
+  contingencyActions: RiskAction[];
+}
+
+export interface RiskMonitoringRow {
+  id: number;
+  date: string;
+  riskId: string;
+  actionId: string;
+  record: string;
+}
+
+export interface RiskMapData {
+  revisionHistory: RevisionHistoryRow[];
+  riskIdentification: RiskIdentificationRow[];
+  riskEvaluation: RiskEvaluationBlock[];
+  riskMonitoring: RiskMonitoringRow[];
+}
+// --- End Risk Map Types ---
+
+
 export interface DocumentVersion {
   timestamp: string;
   summary: string;
   sections: DocumentSection;
   attachments?: Attachment[];
+  riskMapData?: RiskMapData;
 }
 
 export interface SavedDocument {
@@ -38,9 +94,10 @@ export interface SavedDocument {
   attachments?: Attachment[];
   history?: DocumentVersion[];
   priority?: Priority;
+  riskMapData?: RiskMapData;
 }
 
-export type DocumentType = 'etp' | 'tr';
+export type DocumentType = 'etp' | 'tr' | 'risk-map';
 
 export interface Template {
   id: string;

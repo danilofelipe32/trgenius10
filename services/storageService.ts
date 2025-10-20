@@ -2,6 +2,7 @@ import { SavedDocument, UploadedFile, DocumentVersion } from '../types';
 
 const ETP_STORAGE_KEY = 'savedETPs';
 const TR_STORAGE_KEY = 'savedTRs';
+const RISKMAP_STORAGE_KEY = 'savedRiskMaps';
 const FILES_STORAGE_KEY = 'trGeniusFiles';
 
 // Document Management (ETP & TR)
@@ -28,7 +29,8 @@ const saveDocuments = (key: string, docs: SavedDocument[]): void => {
           timestamp: timestamp,
           summary: 'Documento criado.',
           sections: newDoc.sections,
-          attachments: newDoc.attachments
+          attachments: newDoc.attachments,
+          riskMapData: newDoc.riskMapData,
         }]
       };
     }
@@ -36,6 +38,7 @@ const saveDocuments = (key: string, docs: SavedDocument[]): void => {
     // Case 2: Existing document. Check for changes.
     const hasChanged = JSON.stringify(newDoc.sections) !== JSON.stringify(oldDoc.sections) ||
                          JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || []) ||
+                         JSON.stringify(newDoc.riskMapData || {}) !== JSON.stringify(oldDoc.riskMapData || {}) ||
                          newDoc.name !== oldDoc.name ||
                          newDoc.priority !== oldDoc.priority;
 
@@ -53,6 +56,9 @@ const saveDocuments = (key: string, docs: SavedDocument[]): void => {
       if (JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || [])) {
         changes.push('anexos atualizados');
       }
+      if (JSON.stringify(newDoc.riskMapData || {}) !== JSON.stringify(oldDoc.riskMapData || {})) {
+        changes.push('mapa de riscos atualizado');
+      }
 
       const summary = changes.length > 0 ? `Alteração: ${changes.join(', ')}.` : 'Modificações gerais.';
 
@@ -60,7 +66,8 @@ const saveDocuments = (key: string, docs: SavedDocument[]): void => {
         timestamp: timestamp,
         summary: summary,
         sections: newDoc.sections,
-        attachments: newDoc.attachments
+        attachments: newDoc.attachments,
+        riskMapData: newDoc.riskMapData,
       };
       
       const newHistory = [newHistoryEntry, ...(oldDoc.history || [])];
@@ -83,6 +90,9 @@ export const getSavedETPs = (): SavedDocument[] => getSavedDocuments(ETP_STORAGE
 export const saveETPs = (etps: SavedDocument[]): void => saveDocuments(ETP_STORAGE_KEY, etps);
 export const getSavedTRs = (): SavedDocument[] => getSavedDocuments(TR_STORAGE_KEY);
 export const saveTRs = (trs: SavedDocument[]): void => saveDocuments(TR_STORAGE_KEY, trs);
+export const getSavedRiskMaps = (): SavedDocument[] => getSavedDocuments(RISKMAP_STORAGE_KEY);
+export const saveRiskMaps = (maps: SavedDocument[]): void => saveDocuments(RISKMAP_STORAGE_KEY, maps);
+
 
 // Uploaded Files Management
 export const getStoredFiles = (): UploadedFile[] => {

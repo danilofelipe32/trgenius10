@@ -271,3 +271,14 @@ export const trSections: Section[] = [
     tooltip: "Conforme Arts. 155 a 163 da Lei 14.133/21. As sanções devem ser proporcionais à gravidade da infração."
   }
 ];
+
+export const riskMapSections: Section[] = [
+  {
+    id: 'risk-map-intro',
+    title: '1. Introdução',
+    placeholder: 'Descreva o contexto geral do gerenciamento de riscos para esta contratação. O objetivo é permitir ações contínuas de planejamento, organização e controle dos recursos relacionados aos riscos que possam comprometer o sucesso da contratação, da execução do objeto e da gestão contratual.',
+    hasGen: true,
+    hasRiskAnalysis: false,
+    tooltip: "Apresente o objetivo e o escopo do Mapa de Riscos da Contratação."
+  },
+];
