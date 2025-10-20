@@ -115,11 +115,11 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             const [_fullMatch, markdownBlock, markdownText, markdownUrl, standaloneUrl, boldBlock, boldText] = match;
 
             if (markdownBlock) {
-                nodes.push(<a href={markdownUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{markdownText}</a>);
+                nodes.push(<a href={markdownUrl} key={match.index} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{markdownText}</a>);
             } else if (standaloneUrl) {
-                nodes.push(<a href={standaloneUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{standaloneUrl}</a>);
+                nodes.push(<a href={standaloneUrl} key={match.index} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{standaloneUrl}</a>);
             } else if (boldBlock) {
-                nodes.push(<strong key={lastIndex} className="font-semibold text-slate-800">{boldText}</strong>);
+                nodes.push(<strong key={match.index} className="font-semibold text-slate-800">{boldText}</strong>);
             }
             
             lastIndex = regex.lastIndex;
@@ -145,7 +145,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
             }
         }
         listItems = [];
