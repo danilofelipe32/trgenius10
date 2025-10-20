@@ -130,10 +130,13 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
     // 1. Header
     addText(doc.name, { size: 18, isBold: true, spacing: 20 });
     
+    const { riskMapData } = doc;
+
     // 2. Revision History
-    if (doc.riskMapData?.revisionHistory && doc.riskMapData.revisionHistory.length > 0) {
+    const revisionHistory = riskMapData?.revisionHistory;
+    if (revisionHistory && revisionHistory.length > 0) {
         addSectionTitle('Histórico de Revisões');
-        doc.riskMapData.revisionHistory.forEach(row => {
+        revisionHistory.forEach(row => {
             checkPageBreak(50);
             addText(`Data: ${row.date || 'N/A'} | Versão: ${row.version || 'N/A'} | Fase: ${row.phase || 'N/A'}`, { size: 10, isBold: true, spacing: 5 });
             addText(`Autor: ${row.author || 'N/A'}`, { size: 9, spacing: 5 });
@@ -150,9 +153,10 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
     }
 
     // 4. Risk Identification
-    if (doc.riskMapData?.riskIdentification && doc.riskMapData.riskIdentification.length > 0) {
+    const riskIdentification = riskMapData?.riskIdentification;
+    if (riskIdentification && riskIdentification.length > 0) {
         addSectionTitle('2. Identificação e Análise dos Principais Riscos');
-        doc.riskMapData.riskIdentification.forEach(row => {
+        riskIdentification.forEach(row => {
             const p = parseInt(row.probability, 10) || 0;
             const i = parseInt(row.impact, 10) || 0;
             const riskLevel = p * i;
@@ -166,20 +170,21 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
     }
 
     // 5. Risk Evaluation
-    if (doc.riskMapData?.riskEvaluation && doc.riskMapData.riskEvaluation.length > 0) {
+    const riskEvaluation = riskMapData?.riskEvaluation;
+    if (riskEvaluation && riskEvaluation.length > 0) {
         addSectionTitle('3. Avaliação e Tratamento dos Riscos Identificados');
-        doc.riskMapData.riskEvaluation.forEach(block => {
+        riskEvaluation.forEach(block => {
             checkPageBreak(80);
             addText(`Risco ${block.riskId || 'N/A'}: ${block.riskDescription || 'N/A'}`, { size: 11, isBold: true, spacing: 8 });
             addText(`Probabilidade: ${block.probability || 'N/A'} | Impacto: ${block.impact || 'N/A'} | Dano: ${block.damage || 'N/A'} | Tratamento: ${block.treatment || 'N/A'}`, { size: 9, spacing: 8 });
             
-            if (block.preventiveActions.length > 0) {
+            if (block.preventiveActions && block.preventiveActions.length > 0) {
                 addText('Ações Preventivas:', { size: 10, isBold: true, spacing: 5, x: pageMargin + 10 });
                 block.preventiveActions.forEach(action => {
                     addText(`- ${action.actionId || 'ID'}: ${action.action || 'N/A'} (Responsável: ${action.responsible || 'N/A'})`, { size: 9, spacing: 5, x: pageMargin + 20 });
                 });
             }
-            if (block.contingencyActions.length > 0) {
+            if (block.contingencyActions && block.contingencyActions.length > 0) {
                 yPos += 5;
                 addText('Ações de Contingência:', { size: 10, isBold: true, spacing: 5, x: pageMargin + 10 });
                 block.contingencyActions.forEach(action => {
@@ -193,9 +198,10 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
     }
 
     // 6. Risk Monitoring
-    if (doc.riskMapData?.riskMonitoring && doc.riskMapData.riskMonitoring.length > 0) {
+    const riskMonitoring = riskMapData?.riskMonitoring;
+    if (riskMonitoring && riskMonitoring.length > 0) {
         addSectionTitle('4. Acompanhamento das Ações de Tratamento de Riscos');
-        doc.riskMapData.riskMonitoring.forEach(row => {
+        riskMonitoring.forEach(row => {
             checkPageBreak(40);
             addText(`Data: ${row.date || 'N/A'} | Risco ID: ${row.riskId || 'N/A'} | Ação ID: ${row.actionId || 'N/A'}`, { size: 10, isBold: true, spacing: 5 });
             addText(`Registro: ${row.record || 'N/A'}`, { size: 9, spacing: 10 });

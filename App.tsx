@@ -145,7 +145,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -1256,17 +1256,16 @@ ${content}
     if (map) {
         let content = `# Mapa de Riscos: ${map.name}\n\n`;
 
-        // Section content (like introduction)
         if (map.sections && map.sections['risk-map-intro']) {
              content += `## 1. Introdução\n${map.sections['risk-map-intro']}\n\n`;
         }
 
-        // Risk Identification table
-        if (map.riskMapData?.riskIdentification?.length > 0) {
+        const riskIdentificationData = map.riskMapData?.riskIdentification;
+        if (riskIdentificationData && riskIdentificationData.length > 0) {
             content += '## 2. Identificação e Análise dos Principais Riscos\n';
             content += '| Id | Risco | Relacionado a | P | I | Nível |\n';
             content += '|---|---|---|---|---|---|\n';
-            map.riskMapData.riskIdentification.forEach(row => {
+            riskIdentificationData.forEach(row => {
                 const p = parseInt(row.probability, 10) || 0;
                 const i = parseInt(row.impact, 10) || 0;
                 content += `| ${row.riskId || ''} | ${row.risk || ''} | ${row.relatedTo || ''} | ${row.probability || ''} | ${row.impact || ''} | ${p*i} |\n`;
@@ -1274,10 +1273,10 @@ ${content}
             content += '\n';
         }
         
-        // Risk Evaluation blocks
-        if (map.riskMapData?.riskEvaluation?.length > 0) {
+        const riskEvaluationData = map.riskMapData?.riskEvaluation;
+        if (riskEvaluationData && riskEvaluationData.length > 0) {
             content += '## 3. Avaliação e Tratamento dos Riscos Identificados\n';
-            map.riskMapData.riskEvaluation.forEach(block => {
+            riskEvaluationData.forEach(block => {
                 content += `### Risco: ${block.riskId || ''} - ${block.riskDescription || ''}\n`;
                 content += `- **Probabilidade:** ${block.probability || 'N/A'}\n`;
                 content += `- **Impacto:** ${block.impact || 'N/A'}\n`;
