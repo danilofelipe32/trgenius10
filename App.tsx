@@ -1949,7 +1949,7 @@ Solicitação do usuário: "${refinePrompt}"
             ></div>
           )}
          
-          <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+          <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
              <div className="flex items-center justify-between gap-3 mb-6 pt-10 md:pt-0">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
@@ -2350,48 +2350,47 @@ Solicitação do usuário: "${refinePrompt}"
           </aside>
           
           <main className="flex-1 p-4 pb-24 sm:p-6 md:p-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
-             <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
-                <div className="flex-grow">
-                  {/* Mobile Title */}
-                  <h2 className="text-2xl font-bold text-slate-800 md:hidden">
+             {/* Mobile-only Header */}
+             <div className="md:hidden flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-800">
                     {viewTitles[activeView]}
-                  </h2>
-                  {/* Desktop Tabs */}
-                  <div className="hidden md:block">
-                    <div className="border-b border-slate-200">
-                      <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                        <button
-                          onClick={() => switchView('etp')}
-                          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                            activeView === 'etp'
-                              ? 'border-blue-600 text-blue-600'
-                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          Gerador de ETP
-                        </button>
-                        <button
-                          onClick={() => switchView('risk-map')}
-                          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                            activeView === 'risk-map'
-                              ? 'border-blue-600 text-blue-600'
-                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          Mapa de Riscos
-                        </button>
-                        <button
-                          onClick={() => switchView('tr')}
-                          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                            activeView === 'tr'
-                              ? 'border-blue-600 text-blue-600'
-                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          Gerador de TR
-                        </button>
-                      </nav>
-                    </div>
+                </h2>
+             </div>
+             <header className="hidden md:flex flex-wrap justify-between items-center gap-4 mb-8">
+                <div className="flex-grow">
+                  <div className="border-b border-slate-200">
+                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                      <button
+                        onClick={() => switchView('etp')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                          activeView === 'etp'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        Gerador de ETP
+                      </button>
+                      <button
+                        onClick={() => switchView('risk-map')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                          activeView === 'risk-map'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        Mapa de Risco
+                      </button>
+                      <button
+                        onClick={() => switchView('tr')}
+                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                          activeView === 'tr'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        Gerador de TR
+                      </button>
+                    </nav>
                   </div>
                 </div>
                 <div className="flex-shrink-0 flex items-center gap-4">
@@ -2967,7 +2966,7 @@ Solicitação do usuário: "${refinePrompt}"
         </div>
 
         {/* TR Templates */}
-        <div>
+        <div className="mb-8">
             <h3 className="text-lg font-bold text-purple-800 mb-3 border-b-2 border-purple-200 pb-2">Termo de Referência (TR)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <button 
@@ -2997,6 +2996,25 @@ Solicitação do usuário: "${refinePrompt}"
                         </div>
                     </button>
                 ))}
+            </div>
+        </div>
+        
+        {/* Risk Map Section */}
+        <div className="pt-4 border-t">
+            <h3 className="text-lg font-bold text-orange-800 mb-3 border-b-2 border-orange-200 pb-2">Mapa de Risco</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <button 
+                    onClick={() => handleCreateNewDocument('risk-map')}
+                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
+                >
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <Icon name="shield-alt" className="text-slate-500 text-xl" />
+                            <p className="font-bold text-slate-700">Criar um Mapa de Risco em Branco</p>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um mapa de riscos do zero para a sua contratação.</p>
+                    </div>
+                </button>
             </div>
         </div>
       </div>
