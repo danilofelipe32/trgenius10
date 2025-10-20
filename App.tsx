@@ -145,7 +145,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -451,15 +451,15 @@ const PrioritySelector: React.FC<{
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-slate-600 mb-2">Prioridade</label>
+    <div className="w-full md:w-auto">
+      <label className="block text-sm font-medium text-slate-600 mb-2 md:text-right">Prioridade</label>
       <div className="flex items-center gap-2">
         {priorities.map(p => (
           <button
             key={p.key}
             type="button"
             onClick={() => setPriority(p.key)}
-            className={`flex-1 px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-colors flex items-center justify-center gap-2 ${
+            className={`flex-1 md:flex-initial px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-colors flex items-center justify-center gap-2 ${
               priority === p.key ? activeClasses[p.key] : `bg-white ${p.classes}`
             }`}
           >
@@ -2438,7 +2438,7 @@ Solicitação do usuário: "${refinePrompt}"
             
             <div className={`${activeView === 'etp' ? 'block' : 'hidden'}`}>
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
-                   <div className="flex justify-between items-center mb-4 border-b pb-3">
+                   <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 border-b pb-3 gap-4">
                      <h2 className="text-lg font-semibold text-slate-700">Dados do Estudo Técnico Preliminar</h2>
                      <PrioritySelector priority={currentEtpPriority} setPriority={setCurrentEtpPriority} />
                    </div>
@@ -2493,10 +2493,10 @@ Solicitação do usuário: "${refinePrompt}"
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                            <Icon name="eraser" /> Limpar Formulário
+                            <Icon name="eraser" /> <span>Limpar<span className="hidden sm:inline"> Formulário</span></span>
                         </button>
                         <button onClick={() => handleSaveDocument('etp')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
-                            <Icon name="save" /> Salvar ETP
+                            <Icon name="save" /> <span>Salvar<span className="hidden sm:inline"> ETP</span></span>
                         </button>
                     </div>
                 </div>
@@ -2547,7 +2547,7 @@ Solicitação do usuário: "${refinePrompt}"
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
-                    <div className="flex justify-between items-center mb-4 border-b pb-3">
+                    <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 border-b pb-3 gap-4">
                         <h2 className="text-lg font-semibold text-slate-700">Dados do Termo de Referência</h2>
                         <PrioritySelector priority={currentTrPriority} setPriority={setCurrentTrPriority} />
                     </div>
@@ -2609,7 +2609,7 @@ Solicitação do usuário: "${refinePrompt}"
                   );
                 })}
                 <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
-                    <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
                             <Icon name="eraser" /> Limpar
@@ -2806,7 +2806,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
 
                      <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
-                        <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:flex md:items-center">
                             <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                             <button onClick={handleClearForm('risk-map')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
                                 <Icon name="eraser" /> Limpar
