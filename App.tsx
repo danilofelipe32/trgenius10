@@ -196,6 +196,47 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
     );
 };
 
+// --- Bottom Navigation Bar for Mobile ---
+const BottomNavBar: React.FC<{
+  activeView: DocumentType;
+  switchView: (view: DocumentType) => void;
+  openSidebar: () => void;
+}> = ({ activeView, switchView, openSidebar }) => {
+  const navItems = [
+    { id: 'etp', label: 'ETP', icon: 'file-alt' },
+    { id: 'risk-map', label: 'Riscos', icon: 'shield-alt' },
+    { id: 'tr', label: 'TR', icon: 'gavel' },
+    { id: 'menu', label: 'Menu', icon: 'bars' }
+  ];
+
+  return (
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-slate-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-40"
+         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex justify-around items-start h-20 pt-2">
+        {navItems.map(item => {
+          const isActive = activeView === item.id;
+          const isMenu = item.id === 'menu';
+          const onClick = isMenu ? openSidebar : () => switchView(item.id as DocumentType);
+          
+          // Menu button should not have an active state based on view
+          const finalIsActive = isMenu ? false : isActive;
+
+          return (
+            <button key={item.id} onClick={onClick} className="flex flex-col items-center justify-start text-center w-1/4 h-full transition-colors duration-200 space-y-1 group" aria-label={item.label}>
+              <div className={`flex items-center justify-center h-8 rounded-full transition-all duration-300 ease-in-out ${finalIsActive ? 'bg-blue-100 w-16' : 'w-8 group-hover:bg-slate-100'}`}>
+                 <Icon name={item.icon} className={`text-xl transition-colors duration-300 ${finalIsActive ? 'text-blue-600' : 'text-slate-500'}`} />
+              </div>
+              <span className={`text-xs font-bold transition-colors duration-300 ${finalIsActive ? 'text-blue-600' : 'text-slate-500'}`}>
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 
 const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
     const binaryString = window.atob(base64);
@@ -1902,10 +1943,6 @@ Solicitação do usuário: "${refinePrompt}"
               onClick={() => setIsSidebarOpen(false)}
             ></div>
           )}
-          
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden fixed top-4 left-4 z-30 bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center">
-            <Icon name={isSidebarOpen ? 'times' : 'bars'} />
-          </button>
          
           <aside className={`fixed md:relative top-0 left-0 h-full w-full max-w-sm md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col transition-transform duration-300 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
              <div className="flex items-center justify-between gap-3 mb-6 pt-10 md:pt-0">
@@ -2298,9 +2335,9 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
           </aside>
           
-          <main className="flex-1 p-4 pb-28 sm:p-6 md:p-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
+          <main className="flex-1 p-4 pb-24 sm:p-6 md:p-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
              <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
-                <div className="flex-grow">
+                <div className="flex-grow hidden md:block">
                   <div className="border-b border-slate-200">
                     <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                       <button
@@ -2336,7 +2373,7 @@ Solicitação do usuário: "${refinePrompt}"
                     </nav>
                   </div>
                 </div>
-                <div className="flex-shrink-0 ml-4 flex items-center gap-4">
+                <div className="flex-shrink-0 ml-auto flex items-center gap-4">
                     <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-600" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
                         <Icon name="globe-americas" />
                         <span className="hidden sm:inline">Pesquisa Web</span>
@@ -2412,7 +2449,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
                     <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2531,7 +2568,7 @@ Solicitação do usuário: "${refinePrompt}"
                     />
                   );
                 })}
-                <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
                     <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                         <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                         <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -2728,7 +2765,7 @@ Solicitação do usuário: "${refinePrompt}"
                         </div>
                     </div>
 
-                     <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                     <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
                         <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                             <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                             <button onClick={handleClearForm('risk-map')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
@@ -3058,6 +3095,13 @@ Solicitação do usuário: "${refinePrompt}"
           />
         ))}
     </div>
+
+    {/* New Bottom Nav Bar */}
+    <BottomNavBar 
+        activeView={activeView}
+        switchView={switchView}
+        openSidebar={() => setIsSidebarOpen(true)}
+    />
     </div>
   );
 };
