@@ -84,3 +84,141 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[]) => 
 
     pdf.save(`${doc.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 };
+
+
+export const exportRiskMapToPDF = (doc: SavedDocument) => {
+    const { jsPDF } = jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+
+    const pageMargin = 40;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const contentWidth = pageWidth - (pageMargin * 2);
+    let yPos = pageMargin;
+
+    const checkPageBreak = (neededHeight: number) => {
+        if (yPos + neededHeight > pageHeight - pageMargin) {
+            pdf.addPage();
+            yPos = pageMargin;
+        }
+    };
+
+    const addText = (text: string, options: { size: number; isBold?: boolean; spacing?: number; x?: number; align?: 'left' | 'center' | 'right' }) => {
+        pdf.setFontSize(options.size);
+        pdf.setFont(undefined, options.isBold ? 'bold' : 'normal');
+
+        const splitText = pdf.splitTextToSize(text, contentWidth - ((options.x || pageMargin) - pageMargin));
+        const textBlockHeight = pdf.getTextDimensions(splitText).h;
+
+        checkPageBreak(textBlockHeight + (options.spacing || 0));
+        
+        pdf.text(splitText, options.x || pageMargin, yPos, { align: options.align || 'left' });
+        yPos += textBlockHeight + (options.spacing || 0);
+    };
+    
+    const addSectionTitle = (title: string) => {
+        checkPageBreak(40);
+        yPos += 15;
+        addText(title, { size: 14, isBold: true, spacing: 10 });
+        pdf.setLineWidth(0.5);
+        pdf.setDrawColor(150);
+        pdf.line(pageMargin, yPos - 8, pageWidth - pageMargin, yPos - 8);
+    };
+
+    // --- PDF Content ---
+
+    // 1. Header
+    addText(doc.name, { size: 18, isBold: true, spacing: 20 });
+    
+    // 2. Revision History
+    if (doc.riskMapData?.revisionHistory && doc.riskMapData.revisionHistory.length > 0) {
+        addSectionTitle('Histórico de Revisões');
+        doc.riskMapData.revisionHistory.forEach(row => {
+            checkPageBreak(50);
+            addText(`Data: ${row.date || 'N/A'} | Versão: ${row.version || 'N/A'} | Fase: ${row.phase || 'N/A'}`, { size: 10, isBold: true, spacing: 5 });
+            addText(`Autor: ${row.author || 'N/A'}`, { size: 9, spacing: 5 });
+            addText(`Descrição: ${row.description || 'N/A'}`, { size: 9, spacing: 10 });
+             pdf.setDrawColor(220); // light gray
+             pdf.line(pageMargin, yPos - 5, contentWidth + pageMargin, yPos - 5);
+        });
+    }
+
+    // 3. Introduction
+    if (doc.sections['risk-map-intro']) {
+        addSectionTitle('1. Introdução');
+        addText(doc.sections['risk-map-intro'], { size: 11, spacing: 20 });
+    }
+
+    // 4. Risk Identification
+    if (doc.riskMapData?.riskIdentification && doc.riskMapData.riskIdentification.length > 0) {
+        addSectionTitle('2. Identificação e Análise dos Principais Riscos');
+        doc.riskMapData.riskIdentification.forEach(row => {
+            const p = parseInt(row.probability, 10) || 0;
+            const i = parseInt(row.impact, 10) || 0;
+            const riskLevel = p * i;
+            checkPageBreak(50);
+            addText(`ID: ${row.riskId || 'N/A'} | Nível de Risco: ${riskLevel}`, { size: 10, isBold: true, spacing: 5 });
+            addText(`Risco: ${row.risk || 'N/A'}`, { size: 9, spacing: 5 });
+            addText(`Relacionado a: ${row.relatedTo || 'N/A'} | Probabilidade (P): ${row.probability || 0} | Impacto (I): ${row.impact || 0}`, { size: 9, spacing: 10 });
+            pdf.setDrawColor(220);
+            pdf.line(pageMargin, yPos - 5, contentWidth + pageMargin, yPos - 5);
+        });
+    }
+
+    // 5. Risk Evaluation
+    if (doc.riskMapData?.riskEvaluation && doc.riskMapData.riskEvaluation.length > 0) {
+        addSectionTitle('3. Avaliação e Tratamento dos Riscos Identificados');
+        doc.riskMapData.riskEvaluation.forEach(block => {
+            checkPageBreak(80);
+            addText(`Risco ${block.riskId || 'N/A'}: ${block.riskDescription || 'N/A'}`, { size: 11, isBold: true, spacing: 8 });
+            addText(`Probabilidade: ${block.probability || 'N/A'} | Impacto: ${block.impact || 'N/A'} | Dano: ${block.damage || 'N/A'} | Tratamento: ${block.treatment || 'N/A'}`, { size: 9, spacing: 8 });
+            
+            if (block.preventiveActions.length > 0) {
+                addText('Ações Preventivas:', { size: 10, isBold: true, spacing: 5, x: pageMargin + 10 });
+                block.preventiveActions.forEach(action => {
+                    addText(`- ${action.actionId || 'ID'}: ${action.action || 'N/A'} (Responsável: ${action.responsible || 'N/A'})`, { size: 9, spacing: 5, x: pageMargin + 20 });
+                });
+            }
+            if (block.contingencyActions.length > 0) {
+                yPos += 5;
+                addText('Ações de Contingência:', { size: 10, isBold: true, spacing: 5, x: pageMargin + 10 });
+                block.contingencyActions.forEach(action => {
+                    addText(`- ${action.actionId || 'ID'}: ${action.action || 'N/A'} (Responsável: ${action.responsible || 'N/A'})`, { size: 9, spacing: 5, x: pageMargin + 20 });
+                });
+            }
+            yPos += 10;
+            pdf.setDrawColor(220);
+            pdf.line(pageMargin, yPos - 5, contentWidth + pageMargin, yPos - 5);
+        });
+    }
+
+    // 6. Risk Monitoring
+    if (doc.riskMapData?.riskMonitoring && doc.riskMapData.riskMonitoring.length > 0) {
+        addSectionTitle('4. Acompanhamento das Ações de Tratamento de Riscos');
+        doc.riskMapData.riskMonitoring.forEach(row => {
+            checkPageBreak(40);
+            addText(`Data: ${row.date || 'N/A'} | Risco ID: ${row.riskId || 'N/A'} | Ação ID: ${row.actionId || 'N/A'}`, { size: 10, isBold: true, spacing: 5 });
+            addText(`Registro: ${row.record || 'N/A'}`, { size: 9, spacing: 10 });
+            pdf.setDrawColor(220);
+            pdf.line(pageMargin, yPos - 5, contentWidth + pageMargin, yPos - 5);
+        });
+    }
+
+
+    // --- PDF Footer (Pagination) ---
+    const pageCount = pdf.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150);
+        pdf.text(
+            `Página ${i} de ${pageCount}`,
+            pageWidth / 2,
+            pageHeight - 20,
+            { align: 'center' }
+        );
+    }
+
+    // --- Save the PDF ---
+    pdf.save(`${doc.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+};

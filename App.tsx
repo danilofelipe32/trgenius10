@@ -7,7 +7,7 @@ import {
 import * as storage from './services/storageService';
 import { callGemini } from './services/geminiService';
 import { processSingleUploadedFile, chunkText } from './services/ragService';
-import { exportDocumentToPDF } from './services/exportService';
+import { exportDocumentToPDF, exportRiskMapToPDF } from './services/exportService';
 import { Icon } from './components/Icon';
 import Login from './components/Login';
 import { AttachmentManager } from './components/AttachmentManager';
@@ -1419,6 +1419,26 @@ Solicitação do usuário: "${refinePrompt}"
     }
   };
   
+  const handleExportRiskMapToPDF = () => {
+    const riskMapData = {
+        revisionHistory,
+        riskIdentification,
+        riskEvaluation,
+        riskMonitoring
+    };
+    
+    const docToExport: SavedDocument = {
+        id: Date.now(),
+        name: `Mapa de Riscos ${new Date().toLocaleDateString('pt-BR')}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        sections: riskMapSectionsContent,
+        riskMapData: riskMapData
+    };
+
+    exportRiskMapToPDF(docToExport);
+  };
+  
   const handleClearForm = useCallback((docType: DocumentType) => () => {
     if (docType === 'etp') {
         setEtpSectionsContent({});
@@ -2709,10 +2729,13 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
 
                      <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-                        <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
+                        <div className="grid grid-cols-3 gap-3 md:flex md:items-center">
                             <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
                             <button onClick={handleClearForm('risk-map')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                                <Icon name="eraser" /> Limpar Formulário
+                                <Icon name="eraser" /> Limpar
+                            </button>
+                            <button onClick={handleExportRiskMapToPDF} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                <Icon name="file-pdf" /> Visualizar PDF
                             </button>
                             <button onClick={() => handleSaveDocument('risk-map')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
                                 <Icon name="save" /> Salvar Mapa
