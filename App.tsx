@@ -455,6 +455,7 @@ const App: React.FC = () => {
   const [etpAttachments, setEtpAttachments] = useState<Attachment[]>([]);
   const [trAttachments, setTrAttachments] = useState<Attachment[]>([]);
   const [loadedEtpForTr, setLoadedEtpForTr] = useState<{ id: number; name: string; content: string } | null>(null);
+  const [loadedRiskMapForTr, setLoadedRiskMapForTr] = useState<{ id: number; name: string; content: string } | null>(null);
   const [currentEtpPriority, setCurrentEtpPriority] = useState<Priority>('medium');
   const [currentTrPriority, setCurrentTrPriority] = useState<Priority>('medium');
   const [currentRiskMapPriority, setCurrentRiskMapPriority] = useState<Priority>('medium');
@@ -830,7 +831,12 @@ const App: React.FC = () => {
         setLoadingSection(null);
         return;
       }
-      context = `--- INÍCIO DO ETP ---\n${loadedEtpForTr.content}\n--- FIM DO ETP ---`;
+      
+      context = `--- INÍCIO DO ETP ---\n${loadedEtpForTr.content}\n--- FIM DO ETP ---\n\n`;
+      if (loadedRiskMapForTr) {
+        context += `--- INÍCIO DO MAPA DE RISCOS ---\n${loadedRiskMapForTr.content}\n--- FIM DO MAPA DE RISCOS ---\n\n`;
+      }
+
       allSections.forEach(sec => {
         const content = currentSections[sec.id];
         if (sec.id !== sectionId && typeof content === 'string' && content.trim()) {
@@ -838,7 +844,7 @@ const App: React.FC = () => {
         }
       });
       const ragContext = await getRagContext(title);
-      prompt = `Você é um especialista em licitações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Termo de Referência (TR).\n\nPara isso, utilize as seguintes fontes de informação, em ordem de prioridade:\n1. O Estudo Técnico Preliminar (ETP) base.\n2. Os documentos de apoio (RAG) fornecidos.\n3. O conteúdo já preenchido em outras seções do TR.\n\n${context}\n${ragContext}\n\nGere um texto detalhado e bem fundamentado para a seção "${title}" do TR, extraindo e inferindo as informações necessárias das fontes fornecidas.`;
+      prompt = `Você é um especialista em licitações públicas no Brasil. Sua tarefa é gerar o conteúdo para a seção "${title}" de um Termo de Referência (TR).\n\nPara isso, utilize as seguintes fontes de informação, em ordem de prioridade:\n1. O Estudo Técnico Preliminar (ETP) base.\n2. O Mapa de Riscos associado.\n3. Os documentos de apoio (RAG) fornecidos.\n4. O conteúdo já preenchido em outras seções do TR.\n\n${context}\n${ragContext}\n\nGere um texto detalhado e bem fundamentado para a seção "${title}" do TR, extraindo e inferindo as informações necessárias das fontes fornecidas, especialmente considerando os riscos identificados para propor controles e obrigações no TR.`;
     }
     
     const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
@@ -1199,6 +1205,61 @@ ${content}
         setLoadedEtpForTr({ id: etp.id, name: etp.name, content });
     }
   };
+  
+  const handleLoadRiskMapForTr = (riskMapId: string) => {
+    if (riskMapId === "") {
+        setLoadedRiskMapForTr(null);
+        return;
+    }
+    const map = savedRiskMaps.find(m => m.id === parseInt(riskMapId, 10));
+    if (map) {
+        let content = `# Mapa de Riscos: ${map.name}\n\n`;
+
+        // Section content (like introduction)
+        if (map.sections && map.sections['risk-map-intro']) {
+             content += `## 1. Introdução\n${map.sections['risk-map-intro']}\n\n`;
+        }
+
+        // Risk Identification table
+        if (map.riskMapData?.riskIdentification?.length > 0) {
+            content += '## 2. Identificação e Análise dos Principais Riscos\n';
+            content += '| Id | Risco | Relacionado a | P | I | Nível |\n';
+            content += '|---|---|---|---|---|---|\n';
+            map.riskMapData.riskIdentification.forEach(row => {
+                const p = parseInt(row.probability, 10) || 0;
+                const i = parseInt(row.impact, 10) || 0;
+                content += `| ${row.riskId || ''} | ${row.risk || ''} | ${row.relatedTo || ''} | ${row.probability || ''} | ${row.impact || ''} | ${p*i} |\n`;
+            });
+            content += '\n';
+        }
+        
+        // Risk Evaluation blocks
+        if (map.riskMapData?.riskEvaluation?.length > 0) {
+            content += '## 3. Avaliação e Tratamento dos Riscos Identificados\n';
+            map.riskMapData.riskEvaluation.forEach(block => {
+                content += `### Risco: ${block.riskId || ''} - ${block.riskDescription || ''}\n`;
+                content += `- **Probabilidade:** ${block.probability || 'N/A'}\n`;
+                content += `- **Impacto:** ${block.impact || 'N/A'}\n`;
+                content += `- **Dano:** ${block.damage || 'N/A'}\n`;
+                content += `- **Tratamento:** ${block.treatment || 'N/A'}\n`;
+                if(block.preventiveActions?.length > 0) {
+                   content += "**Ações Preventivas:**\n";
+                   block.preventiveActions.forEach(action => {
+                       content += `  - ${action.actionId || ''}: ${action.action || ''} (Responsável: ${action.responsible || ''})\n`;
+                   });
+                }
+                 if(block.contingencyActions?.length > 0) {
+                   content += "**Ações de Contingência:**\n";
+                   block.contingencyActions.forEach(action => {
+                       content += `  - ${action.actionId || ''}: ${action.action || ''} (Responsável: ${action.responsible || ''})\n`;
+                   });
+                }
+                content += '\n';
+            });
+        }
+        setLoadedRiskMapForTr({ id: map.id, name: map.name, content });
+    }
+  };
 
   const handleImportEtpAttachments = () => {
     if (!loadedEtpForTr) {
@@ -1369,8 +1430,11 @@ Solicitação do usuário: "${refinePrompt}"
         setTrAttachments([]);
         setCurrentTrPriority('medium');
         setLoadedEtpForTr(null);
+        setLoadedRiskMapForTr(null);
         const etpSelector = document.getElementById('etp-selector') as HTMLSelectElement;
         if (etpSelector) etpSelector.value = "";
+        const riskMapSelector = document.getElementById('risk-map-selector') as HTMLSelectElement;
+        if (riskMapSelector) riskMapSelector.value = "";
         storage.saveFormState('trFormState', {});
     } else if (docType === 'risk-map') {
         setRiskMapSectionsContent({});
@@ -1691,8 +1755,11 @@ Solicitação do usuário: "${refinePrompt}"
           setTrAttachments([]);
           setCurrentTrPriority('medium');
           setLoadedEtpForTr(null);
+          setLoadedRiskMapForTr(null);
           const etpSelector = document.getElementById('etp-selector') as HTMLSelectElement;
           if (etpSelector) etpSelector.value = "";
+          const riskMapSelector = document.getElementById('risk-map-selector') as HTMLSelectElement;
+          if (riskMapSelector) riskMapSelector.value = "";
           storage.saveFormState('trFormState', template.sections);
       }
       addNotification(
@@ -2339,25 +2406,47 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
 
             <div className={`${activeView === 'tr' ? 'block' : 'hidden'}`}>
-                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-                    <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar ETP para Contexto</label>
-                    <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) salvo para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
-                    <select
-                        id="etp-selector"
-                        onChange={(e) => handleLoadEtpForTr(e.target.value)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        defaultValue=""
-                    >
-                        <option value="">-- Selecione um ETP --</option>
-                        {savedETPs.map(etp => (
-                            <option key={etp.id} value={etp.id}>{etp.name}</option>
-                        ))}
-                    </select>
-                    {loadedEtpForTr && (
-                        <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                            <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado com sucesso.</p>
-                        </div>
-                    )}
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6 space-y-6">
+                    <div>
+                        <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar ETP para Contexto</label>
+                        <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) salvo para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
+                        <select
+                            id="etp-selector"
+                            onChange={(e) => handleLoadEtpForTr(e.target.value)}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            defaultValue=""
+                        >
+                            <option value="">-- Selecione um ETP --</option>
+                            {savedETPs.map(etp => (
+                                <option key={etp.id} value={etp.id}>{etp.name}</option>
+                            ))}
+                        </select>
+                        {loadedEtpForTr && (
+                            <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
+                                <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado com sucesso.</p>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <label htmlFor="risk-map-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar Mapa de Riscos para Contexto</label>
+                        <p className="text-sm text-slate-500 mb-4">Selecione um Mapa de Riscos salvo para que a IA o considere ao gerar o Termo de Referência.</p>
+                        <select
+                            id="risk-map-selector"
+                            onChange={(e) => handleLoadRiskMapForTr(e.target.value)}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            defaultValue=""
+                        >
+                            <option value="">-- Selecione um Mapa de Riscos --</option>
+                            {savedRiskMaps.map(map => (
+                                <option key={map.id} value={map.id}>{map.name}</option>
+                            ))}
+                        </select>
+                        {loadedRiskMapForTr && (
+                            <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
+                                <p className="font-semibold">Mapa de Riscos "{loadedRiskMapForTr.name}" carregado com sucesso.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
