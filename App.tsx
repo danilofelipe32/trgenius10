@@ -1452,6 +1452,66 @@ Solicitação do usuário: "${refinePrompt}"
       }
     };
 
+  // --- Risk Map Handlers ---
+
+  // Revision History
+  const addRevisionHistoryRow = () => setRevisionHistory(prev => [...prev, { id: Date.now(), date: '', version: '', description: '', phase: '', author: '' }]);
+  const removeRevisionHistoryRow = (id: number) => setRevisionHistory(prev => prev.filter(row => row.id !== id));
+  const handleRevisionHistoryChange = (id: number, field: keyof RevisionHistoryRow, value: string) => {
+      setRevisionHistory(prev => prev.map(row => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+
+  // Risk Identification
+  const addRiskIdentificationRow = () => setRiskIdentification(prev => [...prev, { id: Date.now(), riskId: '', risk: '', relatedTo: '', probability: '', impact: '' }]);
+  const removeRiskIdentificationRow = (id: number) => setRiskIdentification(prev => prev.filter(row => row.id !== id));
+  const handleRiskIdentificationChange = (id: number, field: keyof RiskIdentificationRow, value: string) => {
+      setRiskIdentification(prev => prev.map(row => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+
+  // Risk Evaluation
+  const addRiskEvaluationBlock = () => setRiskEvaluation(prev => [...prev, { id: Date.now(), riskId: '', riskDescription: '', probability: '', impact: '', damage: '', treatment: '', preventiveActions: [], contingencyActions: [] }]);
+  const removeRiskEvaluationBlock = (id: number) => setRiskEvaluation(prev => prev.filter(block => block.id !== id));
+  const handleRiskEvaluationChange = (id: number, field: keyof RiskEvaluationBlock, value: string) => {
+      setRiskEvaluation(prev => prev.map(block => (block.id === id ? { ...block, [field]: value } : block)));
+  };
+  const addRiskAction = (blockId: number, type: 'preventive' | 'contingency') => {
+      setRiskEvaluation(prev => prev.map(block => {
+          if (block.id === blockId) {
+              const newAction: RiskAction = { id: Date.now(), actionId: '', action: '', responsible: '' };
+              const key = type === 'preventive' ? 'preventiveActions' : 'contingencyActions';
+              return { ...block, [key]: [...block[key], newAction] };
+          }
+          return block;
+      }));
+  };
+  const removeRiskAction = (blockId: number, type: 'preventive' | 'contingency', actionId: number) => {
+      setRiskEvaluation(prev => prev.map(block => {
+          if (block.id === blockId) {
+              const key = type === 'preventive' ? 'preventiveActions' : 'contingencyActions';
+              return { ...block, [key]: block[key].filter(action => action.id !== actionId) };
+          }
+          return block;
+      }));
+  };
+  const handleRiskActionChange = (blockId: number, type: 'preventive' | 'contingency', actionId: number, field: keyof RiskAction, value: string) => {
+      setRiskEvaluation(prev => prev.map(block => {
+          if (block.id === blockId) {
+              const key = type === 'preventive' ? 'preventiveActions' : 'contingencyActions';
+              const updatedActions = block[key].map(action => action.id === actionId ? { ...action, [field]: value } : action);
+              return { ...block, [key]: updatedActions };
+          }
+          return block;
+      }));
+  };
+
+  // Risk Monitoring
+  const addRiskMonitoringRow = () => setRiskMonitoring(prev => [...prev, { id: Date.now(), date: '', riskId: '', actionId: '', record: '' }]);
+  const removeRiskMonitoringRow = (id: number) => setRiskMonitoring(prev => prev.filter(row => row.id !== id));
+  const handleRiskMonitoringChange = (id: number, field: keyof RiskMonitoringRow, value: string) => {
+      setRiskMonitoring(prev => prev.map(row => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+  // --- End Risk Map Handlers ---
+
   const renderPreviewContent = () => {
     if (!previewContext.type || previewContext.id === null) return null;
     const { type, id } = previewContext;
@@ -2383,7 +2443,194 @@ Solicitação do usuário: "${refinePrompt}"
             </div>
 
             <div className={`${activeView === 'risk-map' ? 'block' : 'hidden'}`}>
-                {/* Content for Mapa de Riscos */}
+                <div className="space-y-6">
+                    {/* Histórico de Revisões */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-semibold text-slate-700">Histórico de Revisões</h2>
+                            <button onClick={addRevisionHistoryRow} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar</button>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-500">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-3">Data</th>
+                                        <th className="px-4 py-3">Versão</th>
+                                        <th className="px-4 py-3">Descrição</th>
+                                        <th className="px-4 py-3">Fase</th>
+                                        <th className="px-4 py-3">Autor</th>
+                                        <th className="px-4 py-3">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {revisionHistory.map(row => (
+                                        <tr key={row.id} className="bg-white border-b">
+                                            <td className="px-2 py-2"><input type="text" value={row.date} onChange={e => handleRevisionHistoryChange(row.id, 'date', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.version} onChange={e => handleRevisionHistoryChange(row.id, 'version', e.target.value)} className="w-20 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.description} onChange={e => handleRevisionHistoryChange(row.id, 'description', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.phase} onChange={e => handleRevisionHistoryChange(row.id, 'phase', e.target.value)} className="w-24 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.author} onChange={e => handleRevisionHistoryChange(row.id, 'author', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><button onClick={() => removeRevisionHistoryRow(row.id)} className="text-red-500 hover:text-red-700"><Icon name="trash" /></button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Introdução */}
+                    {riskMapSections.map(section => (
+                         <Section
+                            key={section.id}
+                            id={section.id}
+                            title={section.title}
+                            placeholder={section.placeholder}
+                            value={riskMapSectionsContent[section.id]}
+                            onChange={(id, value) => handleSectionChange('risk-map', id, value)}
+                            onGenerate={() => {}} 
+                            hasGen={false}
+                            tooltip={section.tooltip}
+                        />
+                    ))}
+
+                    {/* 2 – IDENTIFICAÇÃO E ANÁLISE DOS PRINCIPAIS RISCOS */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-semibold text-slate-700">2 – Identificação e Análise dos Principais Riscos</h2>
+                            <button onClick={addRiskIdentificationRow} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar</button>
+                        </div>
+                         <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-500">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-3">Id</th>
+                                        <th className="px-4 py-3">Risco</th>
+                                        <th className="px-4 py-3">Relacionado ao(à)</th>
+                                        <th className="px-4 py-3">P</th>
+                                        <th className="px-4 py-3">I</th>
+                                        <th className="px-4 py-3">Nível de Risco (P x I)</th>
+                                        <th className="px-4 py-3">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {riskIdentification.map(row => {
+                                        const p = parseInt(row.probability, 10) || 0;
+                                        const i = parseInt(row.impact, 10) || 0;
+                                        const riskLevel = p * i;
+                                        return (
+                                            <tr key={row.id} className="bg-white border-b">
+                                                <td className="px-2 py-2"><input type="text" value={row.riskId} onChange={e => handleRiskIdentificationChange(row.id, 'riskId', e.target.value)} className="w-20 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                                <td className="px-2 py-2"><input type="text" value={row.risk} onChange={e => handleRiskIdentificationChange(row.id, 'risk', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                                <td className="px-2 py-2"><input type="text" value={row.relatedTo} onChange={e => handleRiskIdentificationChange(row.id, 'relatedTo', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                                <td className="px-2 py-2"><input type="number" value={row.probability} onChange={e => handleRiskIdentificationChange(row.id, 'probability', e.target.value)} className="w-16 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                                <td className="px-2 py-2"><input type="number" value={row.impact} onChange={e => handleRiskIdentificationChange(row.id, 'impact', e.target.value)} className="w-16 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                                <td className="px-2 py-2"><span className="font-bold">{riskLevel}</span></td>
+                                                <td className="px-2 py-2"><button onClick={() => removeRiskIdentificationRow(row.id)} className="text-red-500 hover:text-red-700"><Icon name="trash" /></button></td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {/* 3 – AVALIAÇÃO E TRATAMENTO DOS RISCOS IDENTIFICADOS */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                             <h2 className="text-lg font-semibold text-slate-700">3 – Avaliação e Tratamento dos Riscos Identificados</h2>
+                            <button onClick={addRiskEvaluationBlock} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar Avaliação</button>
+                        </div>
+                        <div className="space-y-4">
+                            {riskEvaluation.map(block => (
+                                <div key={block.id} className="border border-slate-200 rounded-lg p-4 relative">
+                                    <button onClick={() => removeRiskEvaluationBlock(block.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><Icon name="times-circle" /></button>
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <input type="text" placeholder="Risco (ex: R01)" value={block.riskId} onChange={e => handleRiskEvaluationChange(block.id, 'riskId', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2" />
+                                        <textarea placeholder="Descrição do Risco" value={block.riskDescription} onChange={e => handleRiskEvaluationChange(block.id, 'riskDescription', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2 h-20" />
+                                        <input type="text" placeholder="Probabilidade" value={block.probability} onChange={e => handleRiskEvaluationChange(block.id, 'probability', e.target.value)} className="bg-slate-50 border-slate-200 rounded p-2" />
+                                        <input type="text" placeholder="Impacto" value={block.impact} onChange={e => handleRiskEvaluationChange(block.id, 'impact', e.target.value)} className="bg-slate-50 border-slate-200 rounded p-2" />
+                                        <input type="text" placeholder="Dano" value={block.damage} onChange={e => handleRiskEvaluationChange(block.id, 'damage', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2" />
+                                        <input type="text" placeholder="Tratamento" value={block.treatment} onChange={e => handleRiskEvaluationChange(block.id, 'treatment', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2" />
+                                    </div>
+                                    {/* Ações Preventivas */}
+                                    <div className="mb-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h3 className="font-semibold">Ações Preventivas</h3>
+                                            <button onClick={() => addRiskAction(block.id, 'preventive')} className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 flex items-center gap-1"><Icon name="plus" /> Ação</button>
+                                        </div>
+                                        {block.preventiveActions.map(action => (
+                                            <div key={action.id} className="grid grid-cols-12 gap-2 mb-1">
+                                                <input type="text" placeholder="Id" value={action.actionId} onChange={e => handleRiskActionChange(block.id, 'preventive', action.id, 'actionId', e.target.value)} className="col-span-1 bg-slate-50 border-slate-200 rounded p-1" />
+                                                <input type="text" placeholder="Ação" value={action.action} onChange={e => handleRiskActionChange(block.id, 'preventive', action.id, 'action', e.target.value)} className="col-span-6 bg-slate-50 border-slate-200 rounded p-1" />
+                                                <input type="text" placeholder="Responsável" value={action.responsible} onChange={e => handleRiskActionChange(block.id, 'preventive', action.id, 'responsible', e.target.value)} className="col-span-4 bg-slate-50 border-slate-200 rounded p-1" />
+                                                <button onClick={() => removeRiskAction(block.id, 'preventive', action.id)} className="col-span-1 text-red-500 hover:text-red-700"><Icon name="trash" /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Ações de Contingência */}
+                                    <div>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h3 className="font-semibold">Ações de Contingência</h3>
+                                            <button onClick={() => addRiskAction(block.id, 'contingency')} className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 flex items-center gap-1"><Icon name="plus" /> Ação</button>
+                                        </div>
+                                        {block.contingencyActions.map(action => (
+                                            <div key={action.id} className="grid grid-cols-12 gap-2 mb-1">
+                                                <input type="text" placeholder="Id" value={action.actionId} onChange={e => handleRiskActionChange(block.id, 'contingency', action.id, 'actionId', e.target.value)} className="col-span-1 bg-slate-50 border-slate-200 rounded p-1" />
+                                                <input type="text" placeholder="Ação" value={action.action} onChange={e => handleRiskActionChange(block.id, 'contingency', action.id, 'action', e.target.value)} className="col-span-6 bg-slate-50 border-slate-200 rounded p-1" />
+                                                <input type="text" placeholder="Responsável" value={action.responsible} onChange={e => handleRiskActionChange(block.id, 'contingency', action.id, 'responsible', e.target.value)} className="col-span-4 bg-slate-50 border-slate-200 rounded p-1" />
+                                                <button onClick={() => removeRiskAction(block.id, 'contingency', action.id)} className="col-span-1 text-red-500 hover:text-red-700"><Icon name="trash" /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* 4 – ACOMPANHAMENTO DAS AÇÕES DE TRATAMENTO DE RISCOS */}
+                     <div className="bg-white p-6 rounded-xl shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-semibold text-slate-700">4 – Acompanhamento das Ações de Tratamento de Riscos</h2>
+                            <button onClick={addRiskMonitoringRow} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar</button>
+                        </div>
+                         <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-slate-500">
+                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-3">Data</th>
+                                        <th className="px-4 py-3">Id. Risco</th>
+                                        <th className="px-4 py-3">Id. Ação</th>
+                                        <th className="px-4 py-3">Registro e Acompanhamento</th>
+                                        <th className="px-4 py-3">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {riskMonitoring.map(row => (
+                                        <tr key={row.id} className="bg-white border-b">
+                                            <td className="px-2 py-2"><input type="text" value={row.date} onChange={e => handleRiskMonitoringChange(row.id, 'date', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.riskId} onChange={e => handleRiskMonitoringChange(row.id, 'riskId', e.target.value)} className="w-24 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.actionId} onChange={e => handleRiskMonitoringChange(row.id, 'actionId', e.target.value)} className="w-24 bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><input type="text" value={row.record} onChange={e => handleRiskMonitoringChange(row.id, 'record', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
+                                            <td className="px-2 py-2"><button onClick={() => removeRiskMonitoringRow(row.id)} className="text-red-500 hover:text-red-700"><Icon name="trash" /></button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                     <div className="fixed bottom-0 left-0 right-0 z-10 bg-white p-4 border-t border-slate-200 md:relative md:bg-transparent md:p-0 md:border-none md:mt-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                        <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
+                            <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
+                            <button onClick={handleClearForm('risk-map')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
+                                <Icon name="eraser" /> Limpar Formulário
+                            </button>
+                            <button onClick={() => handleSaveDocument('risk-map')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                                <Icon name="save" /> Salvar Mapa
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
              <footer className="text-center mt-8 pt-6 border-t border-slate-200 text-slate-500 text-sm">
