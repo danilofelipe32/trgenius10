@@ -524,6 +524,12 @@ const App: React.FC = () => {
   const [installPrompt, setInstallPrompt] = useState<any>(null); // For PWA install prompt
   const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+
+  const viewTitles: Record<DocumentType, string> = {
+    etp: 'Gerador de ETP',
+    'risk-map': 'Mapa de Risco',
+    tr: 'Gerador de TR',
+  };
   
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1260,12 +1266,12 @@ ${content}
              content += `## 1. Introdução\n${map.sections['risk-map-intro']}\n\n`;
         }
 
-        const riskIdentificationData = map.riskMapData?.riskIdentification;
-        if (riskIdentificationData && riskIdentificationData.length > 0) {
+        const riskIdentification = map.riskMapData?.riskIdentification;
+        if (riskIdentification && riskIdentification.length > 0) {
             content += '## 2. Identificação e Análise dos Principais Riscos\n';
             content += '| Id | Risco | Relacionado a | P | I | Nível |\n';
             content += '|---|---|---|---|---|---|\n';
-            riskIdentificationData.forEach(row => {
+            riskIdentification.forEach(row => {
                 const p = parseInt(row.probability, 10) || 0;
                 const i = parseInt(row.impact, 10) || 0;
                 content += `| ${row.riskId || ''} | ${row.risk || ''} | ${row.relatedTo || ''} | ${row.probability || ''} | ${row.impact || ''} | ${p*i} |\n`;
@@ -1273,10 +1279,10 @@ ${content}
             content += '\n';
         }
         
-        const riskEvaluationData = map.riskMapData?.riskEvaluation;
-        if (riskEvaluationData && riskEvaluationData.length > 0) {
+        const riskEvaluation = map.riskMapData?.riskEvaluation;
+        if (riskEvaluation && riskEvaluation.length > 0) {
             content += '## 3. Avaliação e Tratamento dos Riscos Identificados\n';
-            riskEvaluationData.forEach(block => {
+            riskEvaluation.forEach(block => {
                 content += `### Risco: ${block.riskId || ''} - ${block.riskDescription || ''}\n`;
                 content += `- **Probabilidade:** ${block.probability || 'N/A'}\n`;
                 content += `- **Impacto:** ${block.impact || 'N/A'}\n`;
@@ -1951,13 +1957,22 @@ Solicitação do usuário: "${refinePrompt}"
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900">TR Genius</h1>
                 </div>
-                <button
-                    onClick={handleShare}
-                    className="w-9 h-9 flex items-center justify-center text-slate-400 rounded-full hover:bg-slate-100 hover:text-blue-600 transition-colors"
-                    title="Partilhar Aplicação"
-                >
-                    <Icon name="share-nodes" />
-                </button>
+                <div className="flex items-center">
+                  <button
+                      onClick={handleShare}
+                      className="w-9 h-9 flex items-center justify-center text-slate-400 rounded-full hover:bg-slate-100 hover:text-blue-600 transition-colors"
+                      title="Partilhar Aplicação"
+                  >
+                      <Icon name="share-nodes" />
+                  </button>
+                  <button
+                      onClick={() => setIsSidebarOpen(false)}
+                      className="md:hidden w-9 h-9 flex items-center justify-center text-slate-400 rounded-full hover:bg-slate-100 hover:text-red-600 transition-colors"
+                      title="Fechar Menu"
+                  >
+                      <Icon name="times" className="text-xl" />
+                  </button>
+                </div>
             </div>
             <p className="text-slate-500 text-sm mb-4 leading-relaxed">
                 Seu assistente para criar Estudos Técnicos e Termos de Referência, em conformidade com a <b>Lei 14.133/21</b>.
@@ -2336,43 +2351,50 @@ Solicitação do usuário: "${refinePrompt}"
           
           <main className="flex-1 p-4 pb-24 sm:p-6 md:p-10 overflow-y-auto bg-slate-100" onClick={() => { if(window.innerWidth < 768) setIsSidebarOpen(false) }}>
              <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
-                <div className="flex-grow hidden md:block">
-                  <div className="border-b border-slate-200">
-                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                      <button
-                        onClick={() => switchView('etp')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                          activeView === 'etp'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        Gerador de ETP
-                      </button>
-                      <button
-                        onClick={() => switchView('risk-map')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                           activeView === 'risk-map'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        Mapa de Riscos
-                      </button>
-                      <button
-                        onClick={() => switchView('tr')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
-                           activeView === 'tr'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        Gerador de TR
-                      </button>
-                    </nav>
+                <div className="flex-grow">
+                  {/* Mobile Title */}
+                  <h2 className="text-2xl font-bold text-slate-800 md:hidden">
+                    {viewTitles[activeView]}
+                  </h2>
+                  {/* Desktop Tabs */}
+                  <div className="hidden md:block">
+                    <div className="border-b border-slate-200">
+                      <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button
+                          onClick={() => switchView('etp')}
+                          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                            activeView === 'etp'
+                              ? 'border-blue-600 text-blue-600'
+                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          Gerador de ETP
+                        </button>
+                        <button
+                          onClick={() => switchView('risk-map')}
+                          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                            activeView === 'risk-map'
+                              ? 'border-blue-600 text-blue-600'
+                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          Mapa de Riscos
+                        </button>
+                        <button
+                          onClick={() => switchView('tr')}
+                          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+                            activeView === 'tr'
+                              ? 'border-blue-600 text-blue-600'
+                              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          Gerador de TR
+                        </button>
+                      </nav>
+                    </div>
                   </div>
                 </div>
-                <div className="flex-shrink-0 ml-auto flex items-center gap-4">
+                <div className="flex-shrink-0 flex items-center gap-4">
                     <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-600" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
                         <Icon name="globe-americas" />
                         <span className="hidden sm:inline">Pesquisa Web</span>
