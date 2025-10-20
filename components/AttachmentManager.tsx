@@ -6,7 +6,7 @@ interface AttachmentManagerProps {
   attachments: Attachment[];
   onAttachmentsChange: (attachments: Attachment[]) => void;
   onPreview: (attachment: Attachment) => void;
-  addNotification: (title: string, text: string, type: 'success' | 'error' | 'info') => void;
+  addNotification: (type: 'success' | 'error' | 'info', title: string, text: string) => void;
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -46,15 +46,6 @@ const handleDownload = (attachment: Attachment) => {
 
 const TOTAL_SIZE_LIMIT_MB = 50;
 const TOTAL_SIZE_LIMIT_BYTES = TOTAL_SIZE_LIMIT_MB * 1024 * 1024;
-const INDIVIDUAL_FILE_SIZE_LIMIT_MB = 10;
-const INDIVIDUAL_FILE_SIZE_LIMIT_BYTES = INDIVIDUAL_FILE_SIZE_LIMIT_MB * 1024 * 1024;
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/jpeg',
-  'image/png',
-];
-const ACCEPTED_FILE_EXTENSIONS = '.pdf,.docx,.jpg,.jpeg,.png';
 
 export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachments, onAttachmentsChange, onPreview, addNotification }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -72,22 +63,6 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
     let currentTotalSize = attachments.reduce((sum, a) => sum + a.size, 0);
 
     for (const file of fileList) {
-      // Validação 1: Tipo de ficheiro
-      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        const errorMessage = 'Tipo de ficheiro não suportado.';
-        setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: errorMessage } : p));
-        addNotification('Erro de Anexo', `O ficheiro "${file.name}" tem um formato não suportado. Permitidos: PDF, DOCX, JPG, PNG.`, 'error');
-        continue;
-      }
-      
-      // Validação 2: Tamanho individual do ficheiro
-      if (file.size > INDIVIDUAL_FILE_SIZE_LIMIT_BYTES) {
-        const errorMessage = `Ficheiro > ${INDIVIDUAL_FILE_SIZE_LIMIT_MB}MB.`;
-        setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: errorMessage } : p));
-        addNotification('Erro de Anexo', `O ficheiro "${file.name}" excede o limite de tamanho individual de ${INDIVIDUAL_FILE_SIZE_LIMIT_MB}MB.`, 'error');
-        continue;
-      }
-
       if (existingNames.includes(file.name)) {
         setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: 'Ficheiro duplicado.' } : p));
         continue;
@@ -96,8 +71,8 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
       if (currentTotalSize + file.size > TOTAL_SIZE_LIMIT_BYTES) {
         const errorMessage = `Limite de ${TOTAL_SIZE_LIMIT_MB}MB excedido.`;
         setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: errorMessage } : p));
-        addNotification('Erro de Anexo', `Não foi possível adicionar "${file.name}". O tamanho total dos anexos excederia o limite de ${TOTAL_SIZE_LIMIT_MB}MB.`, 'error');
-        // Parar o processamento de mais ficheiros neste lote
+        addNotification('error', 'Erro de Anexo', `Não foi possível adicionar "${file.name}". O tamanho total dos anexos excederia o limite de ${TOTAL_SIZE_LIMIT_MB}MB.`);
+        // Stop processing further files in this batch
         break; 
       }
 
@@ -110,13 +85,13 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
           content: base64Content,
           description: '',
         });
-        currentTotalSize += file.size; // Atualizar o tamanho total após o processamento bem-sucedido
+        currentTotalSize += file.size; // Update total size after successful processing
         setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'success' } : p));
       } catch (error) {
         console.error("Error converting file to base64", error);
         const errorMessage = 'Falha na conversão.';
         setProcessingStatus(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', message: errorMessage } : p));
-        addNotification('Erro', `Não foi possível processar o ficheiro "${file.name}".`, 'error');
+        addNotification('error', 'Erro', `Não foi possível processar o ficheiro "${file.name}".`);
       }
     }
 
@@ -126,7 +101,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
     
     setTimeout(() => {
         setProcessingStatus([]);
-    }, 5000); // Limpar estado após 5 segundos
+    }, 5000); // Clear status after 5 seconds
 
   }, [attachments, onAttachmentsChange, addNotification]);
 
@@ -164,7 +139,7 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     processFiles(e.target.files);
     if (e.target) {
-      e.target.value = ''; // Resetar o input para permitir o recarregamento do mesmo ficheiro
+      e.target.value = ''; // Reset input to allow re-uploading the same file
     }
   };
 
@@ -191,14 +166,14 @@ export const AttachmentManager: React.FC<AttachmentManagerProps> = ({ attachment
         <p className="text-slate-600 text-center">
           <span className="font-semibold text-blue-600">Clique para carregar</span> ou arraste e solte
         </p>
-        <p className="text-xs text-slate-400 mt-1">PDF, DOCX, JPG, PNG (Máx. {INDIVIDUAL_FILE_SIZE_LIMIT_MB}MB/ficheiro). Limite total: {TOTAL_SIZE_LIMIT_MB}MB</p>
+        <p className="text-xs text-slate-400 mt-1">Limite total: {TOTAL_SIZE_LIMIT_MB}MB</p>
         <input
           ref={fileInputRef}
           type="file"
           className="hidden"
           multiple
           onChange={handleFileSelect}
-          accept={ACCEPTED_FILE_EXTENSIONS}
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,image/*"
         />
       </div>
 

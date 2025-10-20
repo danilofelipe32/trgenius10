@@ -40,7 +40,7 @@ export interface SavedDocument {
   priority?: Priority;
 }
 
-export type DocumentType = 'etp' | 'tr' | 'mapa-riscos';
+export type DocumentType = 'etp' | 'tr';
 
 export interface Template {
   id: string;
@@ -65,7 +65,7 @@ export interface UploadedFile {
 }
 
 export interface PreviewContext {
-  type: 'etp' | 'tr' | null;
+  type: DocumentType | null;
   id: number | null;
 }
 
@@ -74,64 +74,4 @@ export interface Notification {
   title: string;
   text: string;
   type: 'success' | 'error' | 'info';
-}
-
-// --- Tipos para o Mapa de Riscos ---
-
-export interface RiskRevision {
-  id: number;
-  date: string;
-  version: string;
-  description: string;
-  phase: string;
-  author: string;
-}
-
-export interface RiskAction {
-    id: number;
-    description: string;
-    responsible: string;
-}
-
-export interface RiskItem {
-    id: string; // e.g., 'R01', 'R02'
-    risk: string;
-    relatedTo: string;
-    probability: number; // P value (5, 10, 15)
-    impact: number; // I value (5, 10, 15)
-    // Análise Detalhada
-    probabilityText: string;
-    impactText: string;
-    damages: string[];
-    treatment: string;
-    preventiveActions: RiskAction[];
-    contingencyActions: RiskAction[];
-}
-
-export interface RiskFollowUp {
-    id: number;
-    date: string;
-    riskId: string;
-    actionId: string;
-    notes: string;
-}
-
-export interface SavedRiskMap {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  // Dados do formulário
-  processNumber: string;
-  projectName: string;
-  locationAndDate: string;
-  introduction: string;
-  revisions: RiskRevision[];
-  risks: RiskItem[];
-  followUps: RiskFollowUp[];
-  preparedBy: { name: string; role: string; registration: string };
-  approvedBy: { name: string; role: string; registration: string };
-  // Metadados
-  history?: DocumentVersion[]; // Reutilizando para o histórico
-  priority?: Priority;
 }

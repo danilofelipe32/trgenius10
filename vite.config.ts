@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const pwaIcon = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3crect width='100' height='100' rx='20' fill='%233b82f6'/%3e%3ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='sans-serif' font-size='50' fill='white' font-weight='bold'%3eTRG%3c/text%3e%3c/svg%3e";
-const pwaMaskableIcon = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3crect width='100' height='100' fill='%23f8fafc'/%3e%3crect x='10' y='10' width='80' height='80' rx='16' fill='%233b82f6'/%3e%3ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='sans-serif' font-size='40' fill='white' font-weight='bold'%3eTRG%3c/text%3e%3c/svg%3e";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -17,9 +16,7 @@ export default defineConfig({
         name: "TR Genius PWA",
         short_name: "TR Genius",
         description: "Assistente de IA para criar Estudos Técnicos Preliminares e Termos de Referência, alinhado à Lei de Licitações 14.133/21.",
-        lang: "pt-BR",
-        start_url: "/",
-        scope: "/",
+        start_url: ".",
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone"],
         background_color: "#f8fafc",
@@ -27,7 +24,6 @@ export default defineConfig({
         orientation: "portrait-primary",
         categories: ["business", "productivity", "government"],
         icons: [
-          { "src": pwaIcon, "sizes": "48x48", "type": "image/svg+xml" },
           { "src": pwaIcon, "sizes": "72x72", "type": "image/svg+xml" },
           { "src": pwaIcon, "sizes": "96x96", "type": "image/svg+xml" },
           { "src": pwaIcon, "sizes": "128x128", "type": "image/svg+xml" },
@@ -35,8 +31,7 @@ export default defineConfig({
           { "src": pwaIcon, "sizes": "152x152", "type": "image/svg+xml" },
           { "src": pwaIcon, "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
           { "src": pwaIcon, "sizes": "384x384", "type": "image/svg+xml" },
-          { "src": pwaIcon, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
-          { "src": pwaMaskableIcon, "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+          { "src": pwaIcon, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
         ]
       },
 

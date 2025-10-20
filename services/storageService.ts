@@ -1,24 +1,24 @@
-import { SavedDocument, UploadedFile, DocumentVersion, SavedRiskMap } from '../types';
+import { SavedDocument, UploadedFile, DocumentVersion } from '../types';
 
 const ETP_STORAGE_KEY = 'savedETPs';
 const TR_STORAGE_KEY = 'savedTRs';
-const RISK_MAP_STORAGE_KEY = 'savedRiskMaps';
 const FILES_STORAGE_KEY = 'trGeniusFiles';
 
-// --- Funções Genéricas ---
-const getSavedData = <T>(key: string): T[] => {
+// Document Management (ETP & TR)
+const getSavedDocuments = (key: string): SavedDocument[] => {
   const data = localStorage.getItem(key);
   return data ? JSON.parse(data) : [];
 };
 
-const saveData = <T extends { id: number; history?: any[]; createdAt?: string }>(key: string, newData: T[]): void => {
-  const oldData = getSavedData<T>(key);
-  const oldDataMap = new Map(oldData.map(d => [d.id, d]));
+const saveDocuments = (key: string, docs: SavedDocument[]): void => {
+  const oldDocs = getSavedDocuments(key);
+  const oldDocsMap = new Map(oldDocs.map(d => [d.id, d]));
   const timestamp = new Date().toISOString();
 
-  const updatedData = newData.map(newDoc => {
-    const oldDoc = oldDataMap.get(newDoc.id);
+  const updatedDocs = docs.map(newDoc => {
+    const oldDoc = oldDocsMap.get(newDoc.id);
 
+    // Case 1: Brand new document
     if (!oldDoc) {
       return {
         ...newDoc,
@@ -27,42 +27,64 @@ const saveData = <T extends { id: number; history?: any[]; createdAt?: string }>
         history: [{
           timestamp: timestamp,
           summary: 'Documento criado.',
-          data: { ...newDoc } // Salva uma cópia completa dos dados na criação
+          sections: newDoc.sections,
+          attachments: newDoc.attachments
         }]
       };
     }
-    
-    // Simplificando a detecção de alterações
-    const hasChanged = JSON.stringify(newDoc) !== JSON.stringify(oldDoc);
+
+    // Case 2: Existing document. Check for changes.
+    const hasChanged = JSON.stringify(newDoc.sections) !== JSON.stringify(oldDoc.sections) ||
+                         JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || []) ||
+                         newDoc.name !== oldDoc.name ||
+                         newDoc.priority !== oldDoc.priority;
 
     if (hasChanged) {
-        const newHistoryEntry = {
-            timestamp: timestamp,
-            summary: 'Modificações gerais.',
-            data: { ...newDoc } // Salva uma cópia completa a cada alteração
-        };
-        const newHistory = [newHistoryEntry, ...(oldDoc.history || [])];
-        return { ...newDoc, updatedAt: timestamp, history: newHistory };
+      const changes: string[] = [];
+      if (newDoc.name !== oldDoc.name) {
+        changes.push('nome alterado');
+      }
+      if (newDoc.priority !== oldDoc.priority) {
+        changes.push('prioridade alterada');
+      }
+      if (JSON.stringify(newDoc.sections) !== JSON.stringify(oldDoc.sections)) {
+        changes.push('conteúdo das seções modificado');
+      }
+      if (JSON.stringify(newDoc.attachments || []) !== JSON.stringify(oldDoc.attachments || [])) {
+        changes.push('anexos atualizados');
+      }
+
+      const summary = changes.length > 0 ? `Alteração: ${changes.join(', ')}.` : 'Modificações gerais.';
+
+      const newHistoryEntry: DocumentVersion = {
+        timestamp: timestamp,
+        summary: summary,
+        sections: newDoc.sections,
+        attachments: newDoc.attachments
+      };
+      
+      const newHistory = [newHistoryEntry, ...(oldDoc.history || [])];
+
+      return {
+        ...newDoc,
+        updatedAt: timestamp,
+        history: newHistory
+      };
     }
 
+    // No changes detected, return the old document to preserve its exact state and history
     return oldDoc;
   });
 
-  localStorage.setItem(key, JSON.stringify(updatedData));
+  localStorage.setItem(key, JSON.stringify(updatedDocs));
 };
 
-// --- Gestão de Documentos (ETP & TR) ---
-export const getSavedETPs = (): SavedDocument[] => getSavedData<SavedDocument>(ETP_STORAGE_KEY);
-export const saveETPs = (etps: SavedDocument[]): void => saveData<SavedDocument>(ETP_STORAGE_KEY, etps);
-export const getSavedTRs = (): SavedDocument[] => getSavedData<SavedDocument>(TR_STORAGE_KEY);
-export const saveTRs = (trs: SavedDocument[]): void => saveData<SavedDocument>(TR_STORAGE_KEY, trs);
+export const getSavedETPs = (): SavedDocument[] => getSavedDocuments(ETP_STORAGE_KEY);
+export const saveETPs = (etps: SavedDocument[]): void => saveDocuments(ETP_STORAGE_KEY, etps);
+export const getSavedTRs = (): SavedDocument[] => getSavedDocuments(TR_STORAGE_KEY);
+export const saveTRs = (trs: SavedDocument[]): void => saveDocuments(TR_STORAGE_KEY, trs);
 
-// --- Gestão de Mapa de Riscos ---
-export const getSavedRiskMaps = (): SavedRiskMap[] => getSavedData<SavedRiskMap>(RISK_MAP_STORAGE_KEY);
-export const saveRiskMaps = (maps: SavedRiskMap[]): void => saveData<SavedRiskMap>(RISK_MAP_STORAGE_KEY, maps);
-
-
-// --- Gestão de Ficheiros Carregados ---
+// Uploaded Files Management
 export const getStoredFiles = (): UploadedFile[] => {
     const data = localStorage.getItem(FILES_STORAGE_KEY);
     return data ? JSON.parse(data) : [];
@@ -72,7 +94,7 @@ export const saveStoredFiles = (files: UploadedFile[]): void => {
     localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files));
 };
 
-// --- Gestão de Estado de Formulário ---
+// Form State Management
 export const saveFormState = (key: string, state: object): void => {
     localStorage.setItem(key, JSON.stringify(state));
 };
