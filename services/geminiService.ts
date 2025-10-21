@@ -1,15 +1,26 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, GenerateContentParameters } from "@google/genai";
 
-// A chave da API foi inserida diretamente no código para facilitar a fase de testes, conforme solicitado.
+// A chave da API foi inserida diretamente no código para fins de teste.
 const ai = new GoogleGenAI({ apiKey: "AIzaSyB1SGptDVNzOh888rzlNSkXCiT5P2goNo0" });
 
-export async function callGemini(prompt: string, useWebSearch: boolean = false): Promise<string> {
+export async function callGemini(prompt: string, useWebSearch: boolean = false, useThinkingMode: boolean = false): Promise<string> {
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    
+    const modelConfig: GenerateContentParameters = {
+      model: useThinkingMode ? 'gemini-2.5-pro' : 'gemini-2.5-flash',
       contents: prompt,
-      ...(useWebSearch && { config: { tools: [{ googleSearch: {} }] } }),
-    });
+      config: {},
+    };
+
+    if (useWebSearch && modelConfig.config) {
+        modelConfig.config.tools = [{ googleSearch: {} }];
+    }
+
+    if (useThinkingMode && modelConfig.config) {
+        modelConfig.config.thinkingConfig = { thinkingBudget: 32768 };
+    }
+
+    const response: GenerateContentResponse = await ai.models.generateContent(modelConfig);
 
     let text = response.text;
     
@@ -60,9 +71,9 @@ export async function callGemini(prompt: string, useWebSearch: boolean = false):
     console.error("Erro ao chamar a API Gemini:", error);
 
     const errorMessage = error.message || '';
-
-    if (errorMessage.includes('API key not valid')) {
-        return `Erro: A chave de API fornecida não é válida. Verifique se a chave está correta e se a API Generative Language está ativada no seu projeto Google Cloud.`;
+    
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+        return `Erro: A chave de API não é válida. Verifique se a chave está configurada corretamente no ambiente e se a API Generative Language está ativada no seu projeto Google Cloud.`;
     }
     
     if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {

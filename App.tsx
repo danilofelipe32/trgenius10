@@ -145,7 +145,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -322,11 +322,11 @@ const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChan
             <label htmlFor={id} className={`block text-lg font-semibold ${hasError ? 'text-red-600' : 'text-slate-700'}`}>{title}</label>
             {tooltip && <Icon name="question-circle" className="text-slate-400 cursor-help" title={tooltip} />}
         </div>
-        <div className="w-full sm:w-auto flex items-stretch gap-2 flex-wrap">
+        <div className="w-full sm:w-auto grid grid-cols-2 sm:flex items-stretch gap-2">
            {value && String(value || '').trim().length > 0 && (
              <button
               onClick={handleCopy}
-              className={`flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold rounded-lg transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0 ${isCopied ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              className={`flex items-center justify-center text-center px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${isCopied ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
               title={isCopied ? 'Copiado para a área de transferência!' : 'Copiar Conteúdo'}
             >
               <Icon name={isCopied ? 'check' : 'copy'} className="mr-2" /> 
@@ -336,31 +336,31 @@ const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChan
            {value && String(value || '').trim().length > 0 && onEdit && (
              <button
               onClick={onEdit}
-              className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0"
+              className="flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors"
               title="Editar e Refinar"
             >
               <Icon name="pencil-alt" className="mr-2" />
-              <span>Editar/Refinar</span>
+              <span>Editar</span>
             </button>
           )}
           {hasRiskAnalysis && onAnalyze && (
             <button
               onClick={onAnalyze}
-              className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors min-w-[calc(50%-0.25rem)] sm:min-w-0"
+              className="flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors"
               title="Análise de Riscos"
             >
               <Icon name="shield-alt" className="mr-2" />
-              <span>Análise Risco</span>
+              <span>Análise</span>
             </button>
           )}
           {hasGen && (
             <button
               onClick={onGenerate}
               disabled={isLoading}
-              className="flex-1 flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[calc(50%-0.25rem)] sm:min-w-0"
+              className="flex items-center justify-center text-center px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="wand-magic-sparkles" className="mr-2" />
-              <span>{isLoading ? 'A gerar...' : 'Gerar com IA'}</span>
+              <span>{isLoading ? 'A gerar...' : 'Gerar'}</span>
             </button>
           )}
         </div>
@@ -506,6 +506,7 @@ const App: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [processingFiles, setProcessingFiles] = useState<Array<{ name: string; status: 'processing' | 'success' | 'error'; message?: string }>>([]);
   const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
+  const [useThinkingMode, setUseThinkingMode] = useState<boolean>(false);
 
 
   // UI State
@@ -815,7 +816,7 @@ const App: React.FC = () => {
         return Promise.resolve('');
       }
       const summaryPrompt = `Você é um assistente de IA especialista em resumir documentos. Resuma o texto a seguir, focando APENAS nas informações mais relevantes para o tópico: "${query}". O resumo deve ser conciso, direto e em formato de tópicos (bullet points) se possível. Retorne apenas o resumo. TEXTO: \n\n${fileContent}`;
-      return callGemini(summaryPrompt, false);
+      return callGemini(summaryPrompt, false); // Thinking mode not needed for summarization
     });
 
     const summaries = await Promise.all(summaryPromises);
@@ -897,7 +898,7 @@ const App: React.FC = () => {
     const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
     try {
-      const generatedText = await callGemini(finalPrompt, useWebSearch);
+      const generatedText = await callGemini(finalPrompt, useWebSearch, useThinkingMode);
       if (generatedText && !generatedText.startsWith("Erro:")) {
         setGeneratedContentModal({ docType, sectionId, title, content: generatedText });
       } else {
@@ -976,7 +977,7 @@ ${content}
     const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
     try {
-        const result = await callGemini(finalPrompt, useWebSearch);
+        const result = await callGemini(finalPrompt, useWebSearch, useThinkingMode);
         setComplianceCheckResult(result);
     } catch (error: any) {
         setComplianceCheckResult(`Erro ao verificar a conformidade: ${error.message}`);
@@ -1395,7 +1396,7 @@ Seja técnico, objetivo e forneça uma análise que agregue valor prático ao pl
     const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
     try {
-        const analysisResult = await callGemini(finalPrompt, useWebSearch);
+        const analysisResult = await callGemini(finalPrompt, useWebSearch, useThinkingMode);
         setAnalysisContent({ title: `Análise de Riscos: ${title}`, content: analysisResult });
     } catch (error: any) {
         setAnalysisContent({ title: `Análise de Riscos: ${title}`, content: `Erro ao realizar análise: ${error.message}` });
@@ -1437,7 +1438,7 @@ Solicitação do usuário: "${refinePrompt}"
 --- TEXTO REFINADO ---`;
 
     try {
-      const refinedText = await callGemini(prompt, useWebSearch);
+      const refinedText = await callGemini(prompt, useWebSearch, useThinkingMode);
       if (refinedText && !refinedText.startsWith("Erro:")) {
         setEditingContent({ ...editingContent, text: refinedText });
       } else {
@@ -1571,7 +1572,7 @@ Solicitação do usuário: "${refinePrompt}"
       const finalPrompt = prompt + (useWebSearch ? webSearchInstruction : '');
 
       try {
-        const summary = await callGemini(finalPrompt, useWebSearch);
+        const summary = await callGemini(finalPrompt, useWebSearch, useThinkingMode);
         if (summary && !summary.startsWith("Erro:")) {
           setSummaryState({ loading: false, content: summary });
         } else {
@@ -2356,20 +2357,27 @@ Solicitação do usuário: "${refinePrompt}"
                     {viewTitles[activeView]}
                 </h2>
                 <div className="flex items-center gap-4">
-                     <label htmlFor="web-search-toggle-mobile" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-700">
-                        <Icon name="globe-americas" className="text-slate-500" />
+                     <label htmlFor="thinking-mode-toggle-mobile" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-700" title="Ativar para usar o modelo mais poderoso para consultas complexas.">
+                        <Icon name="brain" className="text-purple-500" />
+                        <div className="relative">
+                            <input id="thinking-mode-toggle-mobile" type="checkbox" className="sr-only peer" checked={useThinkingMode} onChange={() => setUseThinkingMode(!useThinkingMode)} />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        </div>
+                    </label>
+                    <label htmlFor="web-search-toggle-mobile" className="flex items-center cursor-pointer gap-2 text-sm font-medium text-slate-700">
+                        <Icon name="globe-americas" className="text-blue-500" />
                         <div className="relative">
                             <input id="web-search-toggle-mobile" type="checkbox" className="sr-only peer" checked={useWebSearch} onChange={() => setUseWebSearch(!useWebSearch)} />
                             <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </div>
                     </label>
                      {isOnline ? (
-                        <div className="flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-full px-2.5 py-1" title="A ligação à Internet está ativa.">
+                        <div className="hidden sm:flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-full px-2.5 py-1" title="A ligação à Internet está ativa.">
                             <Icon name="wifi" />
                             <span>Online</span>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full px-2.5 py-1" title="Sem ligação à Internet. As funcionalidades online estão desativadas.">
+                        <div className="hidden sm:flex items-center gap-1.5 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full px-2.5 py-1" title="Sem ligação à Internet. As funcionalidades online estão desativadas.">
                             <Icon name="wifi-slash" />
                             <span>Offline</span>
                         </div>
@@ -2394,7 +2402,7 @@ Solicitação do usuário: "${refinePrompt}"
                         onClick={() => switchView('risk-map')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
                           activeView === 'risk-map'
-                            ? 'border-blue-600 text-blue-600'
+                            ? 'border-orange-600 text-orange-600'
                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                         }`}
                       >
@@ -2404,7 +2412,7 @@ Solicitação do usuário: "${refinePrompt}"
                         onClick={() => switchView('tr')}
                         className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
                           activeView === 'tr'
-                            ? 'border-blue-600 text-blue-600'
+                            ? 'border-purple-600 text-purple-600'
                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                         }`}
                       >
@@ -2413,9 +2421,18 @@ Solicitação do usuário: "${refinePrompt}"
                     </nav>
                   </div>
                 </div>
-                <div className="flex-shrink-0 flex items-center gap-4">
+                <div className="flex-shrink-0 flex items-center gap-6">
+                    <label htmlFor="thinking-mode-toggle" className="flex items-center cursor-pointer gap-3 text-base font-medium text-slate-700" title="Ativar para usar o modelo mais poderoso (gemini-2.5-pro) para consultas complexas. A geração pode ser mais lenta.">
+                        <Icon name="brain" className="text-purple-500" />
+                        <span>Modo Pensamento</span>
+                        <div className="relative">
+                            <input id="thinking-mode-toggle" type="checkbox" className="sr-only peer" checked={useThinkingMode} onChange={() => setUseThinkingMode(!useThinkingMode)} />
+                            <div className="w-14 h-8 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+                        </div>
+                    </label>
+
                     <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer gap-3 text-base font-medium text-slate-700" title="Ativar para incluir resultados da web em tempo real nas respostas da IA.">
-                        <Icon name="globe-americas" className="text-slate-500" />
+                        <Icon name="globe-americas" className="text-blue-500" />
                         <span>Pesquisa Web</span>
                         <div className="relative">
                             <input id="web-search-toggle" type="checkbox" className="sr-only peer" checked={useWebSearch} onChange={() => setUseWebSearch(!useWebSearch)} />
@@ -3124,7 +3141,7 @@ Solicitação do usuário: "${refinePrompt}"
     {installPrompt && !isInstallBannerVisible && (
         <button
             onClick={handleInstallClick}
-            className="fixed bottom-44 right-8 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-700 transition-transform transform hover:scale-110 z-50"
+            className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom)+1rem+3.5rem)] right-6 md:bottom-24 md:right-8 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-700 transition-transform transform hover:scale-110 z-50"
             title="Instalar App"
           >
             <Icon name="download" />
@@ -3132,7 +3149,7 @@ Solicitação do usuário: "${refinePrompt}"
     )}
     <button
       onClick={() => setIsNewDocModalOpen(true)}
-      className="fixed bottom-28 right-8 bg-pink-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-50"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom)+1rem)] right-6 md:bottom-8 md:right-8 bg-pink-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-50"
       title="Criar Novo Documento"
     >
       <Icon name="plus" />
