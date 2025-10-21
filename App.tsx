@@ -538,6 +538,9 @@ const App: React.FC = () => {
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
 
+  // ETP to TR Conversion State
+  const [isConvertingEtpToTr, setIsConvertingEtpToTr] = useState<boolean>(false);
+
   // Compliance Checker State
   const [isComplianceModalOpen, setIsComplianceModalOpen] = useState(false);
   const [complianceCheckResult, setComplianceCheckResult] = useState<string>('');
@@ -908,6 +911,66 @@ const App: React.FC = () => {
       addNotification('error', 'Erro Inesperado', `Falha ao gerar texto: ${error.message}`);
     } finally {
         setLoadingSection(null);
+    }
+  };
+
+  const handleGenerateTrFromEtp = async () => {
+    if (!loadedEtpForTr) {
+        addNotification('info', 'ETP Necessário', 'Por favor, selecione um ETP da lista para gerar o TR.');
+        return;
+    }
+
+    setIsConvertingEtpToTr(true);
+    addNotification('info', 'Geração de TR iniciada', 'A IA está a analisar o ETP e a gerar um rascunho do Termo de Referência. Este processo pode demorar um pouco.');
+
+    const trSectionIds = trSections.map(s => s.id);
+    const prompt = `
+    Você é um especialista em licitações e contratos públicos no Brasil, com profundo conhecimento da Lei 14.133/21. Sua tarefa é converter o Estudo Técnico Preliminar (ETP) fornecido em um Termo de Referência (TR) completo.
+
+    Analise o conteúdo do ETP abaixo e gere o conteúdo correspondente para cada seção do TR.
+
+    Responda APENAS com um objeto JSON válido, sem formatação de markdown (como \`\`\`json). O objeto deve ter chaves que correspondem aos IDs das seções do TR e os valores devem ser o texto gerado para cada seção. Não inclua nenhuma explicação ou texto fora do objeto JSON.
+
+    Os IDs das seções do TR que você deve preencher são: ${trSectionIds.map(id => `'${id}'`).join(', ')}
+
+    Exemplo de formato de saída:
+    {
+      "tr-1": "Conteúdo gerado para a seção Objeto...",
+      "tr-2": "Conteúdo gerado para a seção Justificativa..."
+    }
+
+    --- INÍCIO DO ETP DE CONTEXTO ---
+    ${loadedEtpForTr.content}
+    --- FIM DO ETP DE CONTEXTO ---
+
+    Agora, gere o objeto JSON com o conteúdo do Termo de Referência.
+    `;
+
+    try {
+        // Use 'Thinking Mode' for this complex task, which uses gemini-2.5-pro
+        const result = await callGemini(prompt, useWebSearch, true); 
+
+        if (result.startsWith("Erro:")) {
+            throw new Error(result);
+        }
+
+        // Attempt to parse the JSON response
+        let parsedResult: Record<string, string>;
+        try {
+            parsedResult = JSON.parse(result);
+        } catch (parseError) {
+            console.error("Erro ao analisar JSON da API Gemini:", parseError);
+            console.error("Resposta recebida:", result);
+            throw new Error("A resposta da IA não estava no formato JSON esperado. Verifique o console para mais detalhes.");
+        }
+        
+        setTrSectionsContent(prev => ({ ...prev, ...parsedResult }));
+        addNotification('success', 'TR Gerado com Sucesso', 'Um rascunho do Termo de Referência foi preenchido com base no ETP selecionado.');
+
+    } catch (error: any) {
+        addNotification('error', 'Erro na Geração do TR', error.message || 'Ocorreu um erro inesperado ao gerar o TR a partir do ETP.');
+    } finally {
+        setIsConvertingEtpToTr(false);
     }
   };
 
@@ -2523,21 +2586,32 @@ Solicitação do usuário: "${refinePrompt}"
                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6 space-y-6">
                     <div>
                         <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar ETP para Contexto</label>
-                        <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) salvo para fornecer contexto à IA na geração do Termo de Referência (TR).</p>
-                        <select
-                            id="etp-selector"
-                            onChange={(e) => handleLoadEtpForTr(e.target.value)}
-                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            defaultValue=""
-                        >
-                            <option value="">-- Selecione um ETP --</option>
-                            {savedETPs.map(etp => (
-                                <option key={etp.id} value={etp.id}>{etp.name}</option>
-                            ))}
-                        </select>
+                        <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) para usar como base de contexto ou para gerar automaticamente o Termo de Referência (TR) com IA.</p>
+                        <div className="flex flex-col sm:flex-row items-start gap-3">
+                            <select
+                                id="etp-selector"
+                                onChange={(e) => handleLoadEtpForTr(e.target.value)}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                defaultValue=""
+                            >
+                                <option value="">-- Selecione um ETP --</option>
+                                {savedETPs.map(etp => (
+                                    <option key={etp.id} value={etp.id}>{etp.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={handleGenerateTrFromEtp}
+                                disabled={!loadedEtpForTr || isConvertingEtpToTr}
+                                title={!loadedEtpForTr ? "Selecione um ETP primeiro" : "Gerar rascunho do TR usando IA"}
+                                className="flex items-center justify-center gap-2 w-full sm:w-auto flex-shrink-0 px-4 py-3 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icon name={isConvertingEtpToTr ? 'spinner' : 'wand-magic-sparkles'} className={isConvertingEtpToTr ? 'fa-spin' : ''} />
+                                <span>Gerar TR com IA</span>
+                            </button>
+                        </div>
                         {loadedEtpForTr && (
                             <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                                <p className="font-semibold">ETP "{loadedEtpForTr.name}" carregado com sucesso.</p>
+                                <p className="font-semibold">Contexto do ETP "{loadedEtpForTr.name}" carregado.</p>
                             </div>
                         )}
                     </div>
