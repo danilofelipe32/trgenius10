@@ -2,84 +2,138 @@ import { SavedDocument, Section } from '../types';
 
 declare const jspdf: any;
 
-export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[]) => {
+export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], summary: string | null = null) => {
     const { jsPDF } = jspdf;
     const pdf = new jsPDF('p', 'pt', 'a4');
 
-    const pageMargin = 40;
+    const pageMargin = 50;
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const contentWidth = pageWidth - (pageMargin * 2);
-    let yPos = pageMargin;
+    let yPos = 0;
 
-    const addText = (text: string, options: { size: number; isBold?: boolean; spacing?: number; x?: number }) => {
+    const addText = (text: string, options: { size: number; isBold?: boolean; spacingAfter?: number; x?: number; color?: number | number[]; align?: 'left' | 'center' | 'right' }) => {
+        if (yPos + options.size > pageHeight - pageMargin) {
+            pdf.addPage();
+            yPos = pageMargin;
+        }
+
         pdf.setFontSize(options.size);
         pdf.setFont(undefined, options.isBold ? 'bold' : 'normal');
+        if (options.color) {
+            if (Array.isArray(options.color)) {
+                pdf.setTextColor(options.color[0], options.color[1], options.color[2]);
+            } else {
+                pdf.setTextColor(options.color);
+            }
+        } else {
+            pdf.setTextColor(40, 40, 40); // Default dark grey
+        }
 
-        const splitText = pdf.splitTextToSize(text, contentWidth);
+        const xPos = options.align === 'center' ? pageWidth / 2 : (options.x || pageMargin);
+        const splitText = pdf.splitTextToSize(text, options.align === 'center' ? contentWidth : contentWidth - (xPos - pageMargin));
+        
         const textBlockHeight = pdf.getTextDimensions(splitText).h;
-
         if (yPos + textBlockHeight > pageHeight - pageMargin) {
             pdf.addPage();
             yPos = pageMargin;
         }
 
-        pdf.text(splitText, options.x || pageMargin, yPos);
-        yPos += textBlockHeight + (options.spacing || 0);
+        pdf.text(splitText, xPos, yPos, { align: options.align || 'left' });
+        yPos += textBlockHeight + (options.spacingAfter || 0);
     };
-    
-    addText(doc.name, { size: 18, isBold: true, spacing: 5 });
+
+    // --- PDF Content ---
+
+    // Page 1: Title Page
+    yPos = pageHeight / 4;
+    addText(doc.name, { size: 22, isBold: true, spacingAfter: 20, align: 'center' });
     
     const creationDate = `Criado em: ${new Date(doc.createdAt).toLocaleString('pt-BR')}`;
-    // Add updatedAt if available and different from createdAt
+    addText(creationDate, { size: 10, spacingAfter: 10, color: 120, align: 'center' });
     if (doc.updatedAt && doc.updatedAt !== doc.createdAt) {
-        addText(creationDate, { size: 9, spacing: 5 });
         const updatedDate = `Atualizado em: ${new Date(doc.updatedAt).toLocaleString('pt-BR')}`;
-        addText(updatedDate, { size: 9, spacing: 20 });
-    } else {
-        addText(creationDate, { size: 9, spacing: 20 });
+        addText(updatedDate, { size: 10, spacingAfter: 10, color: 120, align: 'center' });
     }
-    
-    pdf.setLineWidth(0.5);
-    pdf.line(pageMargin, yPos, pageWidth - pageMargin, yPos);
-    yPos += 15;
 
+    // --- Content Pages ---
+    pdf.addPage();
+    yPos = pageMargin;
+
+    // Executive Summary (if available)
+    if (summary) {
+        addText('Sumário Executivo', { size: 16, isBold: true, spacingAfter: 10 });
+        pdf.setLineWidth(0.5);
+        pdf.setDrawColor(200);
+        pdf.line(pageMargin, yPos, pageWidth - pageMargin, yPos);
+        yPos += 15;
+        
+        // Remove markdown for clean text
+        const plainSummary = summary.replace(/(\*\*|##|#|---)/g, '');
+        addText(plainSummary, { size: 11, spacingAfter: 30, color: [80, 80, 80] });
+    }
+
+    // Document Sections
     sections.forEach(section => {
         const content = doc.sections[section.id];
         if (content && String(content).trim()) {
-            addText(section.title, { size: 14, isBold: true, spacing: 10 });
-            addText(String(content), { size: 11, spacing: 20 });
+            yPos += 15; // Space before section
+            if (yPos > pageHeight - pageMargin) {
+                pdf.addPage();
+                yPos = pageMargin;
+            }
+            
+            addText(section.title, { size: 14, isBold: true, spacingAfter: 15 });
+            
+            // Remove markdown for clean text
+            const plainContent = String(content).replace(/(\*\*|##|#|---)/g, '');
+            addText(plainContent, { size: 11, spacingAfter: 20, color: [80, 80, 80] });
         }
     });
 
+    // Attachments
     if (doc.attachments && doc.attachments.length > 0) {
         yPos += 10;
-        if (yPos > pageHeight - pageMargin) {
+        if (yPos > pageHeight - pageMargin - 50) { // Check space for section
             pdf.addPage();
             yPos = pageMargin;
         }
-        pdf.setLineWidth(0.5);
-        pdf.line(pageMargin, yPos, pageWidth - pageMargin, yPos);
-        yPos += 15;
 
-        addText('Anexos:', { size: 14, isBold: true, spacing: 10 });
+        pdf.setLineWidth(0.5);
+        pdf.setDrawColor(200);
+        pdf.line(pageMargin, yPos, pageWidth - pageMargin, yPos);
+        yPos += 20;
+
+        addText('Anexos', { size: 14, isBold: true, spacingAfter: 15 });
 
         doc.attachments.forEach(att => {
-            addText(`- ${att.name} (${att.type})`, { size: 11, spacing: 5 });
+            const attachmentText = `- ${att.name} (${att.type})`;
+            addText(attachmentText, { size: 11, spacingAfter: 10, color: [80, 80, 80] });
         });
     }
 
+    // --- Add Headers & Footers to all pages ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
         pdf.setFontSize(8);
         pdf.setTextColor(150);
+        
+        // Footer
         pdf.text(
             `Página ${i} de ${pageCount}`,
             pageWidth / 2,
             pageHeight - 20,
             { align: 'center' }
         );
+
+        // Header (from page 2 onwards)
+        if (i > 1) {
+            pdf.text(doc.name, pageMargin, 30);
+            pdf.setLineWidth(0.5);
+            pdf.setDrawColor(200);
+            pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
+        }
     }
 
     pdf.save(`${doc.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);

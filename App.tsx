@@ -1523,7 +1523,7 @@ Solicitação do usuário: "${refinePrompt}"
 
     if (docToExport) {
         const allSections = type === 'etp' ? etpSections : trSections;
-        exportDocumentToPDF(docToExport, allSections);
+        exportDocumentToPDF(docToExport, allSections, summaryState.content);
     } else {
         addNotification('error', 'Erro', 'Não foi possível encontrar o documento para exportar.');
     }
