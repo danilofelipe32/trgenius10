@@ -35,8 +35,16 @@ export const etpSections: Section[] = [
     tooltip: "Descreva os requisitos indispensáveis para que a solução atenda à demanda, incluindo padrões de qualidade, desempenho, compatibilidade e segurança."
   },
   {
+    id: 'etp-justificativa-marca',
+    title: '5. Justificativa para Escolha de Marca ou Modelo',
+    placeholder: 'Caso uma marca ou modelo específico tenha sido indicado nos requisitos, justifique formalmente a escolha aqui. Detalhe os motivos técnicos que demonstram que apenas a marca/modelo indicado atende à necessidade da Administração, conforme Art. 41 da Lei 14.133/21. Aborde critérios como padronização, compatibilidade com sistemas existentes, ou características técnicas únicas e indispensáveis.',
+    hasGen: true,
+    hasRiskAnalysis: true,
+    tooltip: "Conforme Art. 41 da Lei 14.133/21, a indicação de marca é excepcional e deve ser robustamente justificada para não restringir a competitividade. Este campo é o local para essa justificativa técnica."
+  },
+  {
     id: 'etp-5',
-    title: '5. Levantamento de Mercado',
+    title: '6. Levantamento de Mercado',
     placeholder: 'Descreva a prospecção e análise de mercado, as soluções consideradas (pelo menos duas), e a justificativa para a escolha da solução. Inclua a avaliação comparativa (Benchmarking) com contratações similares e a análise das soluções disponíveis no mercado.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -44,7 +52,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-6',
-    title: '6. Descrição da Solução como um Todo',
+    title: '7. Descrição da Solução como um Todo',
     placeholder: 'Apresente em linhas gerais as principais características da solução escolhida. Justifique a necessidade de exigência de qualificação técnica e/ou econômico-financeira, se houver.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -52,7 +60,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-7',
-    title: '7. Estimativas das Quantidades a Serem Contratadas',
+    title: '8. Estimativas das Quantidades a Serem Contratadas',
     placeholder: 'Apresente as quantidades a serem contratadas, acompanhadas das memórias de cálculo e dos documentos que lhes dão suporte. Defina o método utilizado para a estimativa.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -60,7 +68,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-8',
-    title: '8. Estimativa do Valor da Contratação',
+    title: '9. Estimativa do Valor da Contratação',
     placeholder: 'Apresente o valor estimado da contratação, detalhando os preços unitários referenciais, as memórias de cálculo e os documentos de suporte (pesquisas de preços, cotações, etc.).',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -68,7 +76,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-9',
-    title: '9. Justificativa para o Parcelamento ou Não da Solução',
+    title: '10. Justificativa para o Parcelamento ou Não da Solução',
     placeholder: 'Justifique a decisão de parcelar ou não o objeto em itens ou lotes, considerando a viabilidade técnica e econômica, a economia de escala e a ampliação da competição.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -76,7 +84,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-10',
-    title: '10. Contratações Correlatas e/ou Interdependentes',
+    title: '11. Contratações Correlatas e/ou Interdependentes',
     placeholder: 'Informe se existem outras contratações que guardam relação ou dependência com o objeto desta contratação, sejam elas já realizadas ou futuras.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -84,7 +92,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-11',
-    title: '11. Demonstração do Alinhamento entre a Contratação e o Planejamento',
+    title: '12. Demonstração do Alinhamento entre a Contratação e o Planejamento',
     placeholder: 'Demonstre como a contratação está alinhada ao Plano de Contratações Anual (PCA), ao Plano Diretor de TI (PDTI), ao Planejamento Estratégico da instituição e a outros instrumentos de planejamento existentes.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -92,7 +100,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-12',
-    title: '12. Demonstrativo dos Resultados Pretendidos',
+    title: '13. Demonstrativo dos Resultados Pretendidos',
     placeholder: 'Descreva os resultados que se pretende alcançar com a contratação, em termos de economicidade, eficácia, eficiência, melhor aproveitamento de recursos e impacto na qualidade do serviço público.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -100,7 +108,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-13',
-    title: '13. Providências a Serem Adotadas Previamente à Celebração do Contrato',
+    title: '14. Providências a Serem Adotadas Previamente à Celebração do Contrato',
     placeholder: 'Liste as ações que a Administração precisa realizar antes de assinar o contrato, como adequação de instalações, obtenção de licenças, capacitação de servidores para fiscalização, etc.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -108,7 +116,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-14',
-    title: '14. Sustentabilidade Ambiental',
+    title: '15. Sustentabilidade Ambiental',
     placeholder: 'Descreva os possíveis impactos ambientais da contratação e as medidas de tratamento ou mitigação. Indique se serão exigidos critérios de sustentabilidade na especificação do objeto ou como obrigação do contratado.',
     hasGen: true,
     hasRiskAnalysis: true,
@@ -116,7 +124,7 @@ export const etpSections: Section[] = [
   },
   {
     id: 'etp-15',
-    title: '15. Declaração da Viabilidade da Contratação',
+    title: '16. Declaração da Viabilidade da Contratação',
     placeholder: 'Apresente o posicionamento conclusivo sobre a viabilidade e a razoabilidade da contratação, com base em toda a análise realizada neste ETP.',
     hasGen: true,
     hasRiskAnalysis: true,

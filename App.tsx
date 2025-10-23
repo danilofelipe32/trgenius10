@@ -842,7 +842,7 @@ const App: React.FC = () => {
             addNotification(
                 'error',
                 'Alerta de Risco de Restrição', 
-                'A menção a marcas ou modelos pode restringir a competitividade. Justifique a escolha no campo "5. Levantamento de Mercado", demonstrando ser a única opção que atende à necessidade (Art. 41 da Lei 14.133/21).'
+                'A menção a marcas ou modelos pode restringir a competitividade. Justifique a escolha no campo "5. Justificativa para Escolha de Marca ou Modelo", demonstrando ser a única opção que atende à necessidade (Art. 41 da Lei 14.133/21).'
             );
             setBrandAlertShownForEtp4(true);
         } else if (!brandRegex.test(value) && brandAlertShownForEtp4) {
