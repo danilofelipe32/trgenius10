@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse, GenerateContentParameters } from "@google/genai";
 
-// A chave da API foi inserida diretamente no código para fins de teste.
-const ai = new GoogleGenAI({ apiKey: "AIzaSyB1SGptDVNzOh888rzlNSkXCiT5P2goNo0" });
+// FIX: API key must be retrieved from environment variables as per security and best practices guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function callGemini(prompt: string, useWebSearch: boolean = false, useThinkingMode: boolean = false): Promise<string> {
   try {

@@ -145,7 +145,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -302,9 +302,10 @@ interface SectionProps {
   isLoading?: boolean;
   hasError?: boolean;
   tooltip?: string;
+  isAiGenerated?: boolean;
 }
 
-const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChange, onGenerate, hasGen, onAnalyze, hasRiskAnalysis, onEdit, isLoading, hasError, tooltip }) => {
+const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChange, onGenerate, hasGen, onAnalyze, hasRiskAnalysis, onEdit, isLoading, hasError, tooltip, isAiGenerated }) => {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = () => {
@@ -371,9 +372,19 @@ const Section: React.FC<SectionProps> = ({ id, title, placeholder, value, onChan
           value={value || ''}
           onChange={(e) => onChange(id, e.target.value)}
           placeholder={isLoading ? 'A IA está a gerar o conteúdo...' : placeholder}
-          className={`w-full h-40 p-3 bg-slate-50 border rounded-lg focus:ring-2 transition-colors ${hasError ? 'border-red-500 ring-red-200' : 'border-slate-200 focus:ring-blue-500'} ${isLoading ? 'opacity-50' : ''}`}
+          className={`w-full h-40 p-3 border rounded-lg focus:ring-2 transition-all duration-300 ${
+            hasError ? 'border-red-500 ring-red-200 bg-red-50' : 
+            isAiGenerated ? 'border-blue-300 bg-blue-50 focus:ring-blue-500 focus:border-blue-500' : 
+            'border-slate-200 bg-slate-50 focus:ring-blue-500 focus:border-blue-500'
+          } ${isLoading ? 'opacity-50' : ''}`}
           disabled={isLoading}
         />
+        {isAiGenerated && !isLoading && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-100/80 backdrop-blur-sm px-2 py-1 rounded-full pointer-events-none" title="Este conteúdo foi gerado por IA. Edite-o para aceitar.">
+                <Icon name="brain" />
+                <span>IA</span>
+            </div>
+        )}
         {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50/70 rounded-lg pointer-events-none">
               <Icon name="spinner" className="fa-spin text-3xl text-blue-600" />
@@ -575,6 +586,12 @@ const App: React.FC = () => {
     title: string;
     content: string;
   } | null>(null);
+  
+  // Brand mention alert state
+  const [brandAlertShownForEtp4, setBrandAlertShownForEtp4] = useState(false);
+
+  // R.R-01: State to track AI-generated content
+  const [aiGeneratedFields, setAiGeneratedFields] = useState<Set<string>>(new Set());
 
 
   const priorityFilters: {
@@ -799,10 +816,44 @@ const App: React.FC = () => {
       });
     }
 
+    // R.R-01: When user edits, remove AI-generated flag
+    if (aiGeneratedFields.has(id)) {
+      setAiGeneratedFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    }
+
     setAutoSaveStatus('A escrever...');
-    if (docType === 'etp') setEtpSectionsContent(prev => ({ ...prev, [id]: value }));
-    else if (docType === 'tr') setTrSectionsContent(prev => ({ ...prev, [id]: value }));
-    else if (docType === 'risk-map') setRiskMapSectionsContent(prev => ({ ...prev, [id]: value }));
+    if (docType === 'etp') {
+      setEtpSectionsContent(prev => ({ ...prev, [id]: value }));
+      
+      // R.C-04: Brand mention check
+      if (id === 'etp-4') {
+        const brandKeywords = [
+            'Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft', 'Samsung', 'LG', 'Intel', 
+            'AMD', 'Cisco', 'Oracle', 'Adobe', 'Autodesk', 'Sony', 'Philips', 'Epson', 
+            'Brother', '3M', 'Xerox', 'Hikvision', 'Intelbras', 'Furukawa'
+        ];
+        const brandRegex = new RegExp(`\\b(marca|modelo)\\s*:|\\b(${brandKeywords.join('|')})\\b`, 'i');
+        
+        if (brandRegex.test(value) && !brandAlertShownForEtp4) {
+            addNotification(
+                'error',
+                'Alerta de Risco de Restrição', 
+                'A menção a marcas ou modelos pode restringir a competitividade. Justifique a escolha no campo "5. Levantamento de Mercado", demonstrando ser a única opção que atende à necessidade (Art. 41 da Lei 14.133/21).'
+            );
+            setBrandAlertShownForEtp4(true);
+        } else if (!brandRegex.test(value) && brandAlertShownForEtp4) {
+            setBrandAlertShownForEtp4(false);
+        }
+      }
+    } else if (docType === 'tr') {
+      setTrSectionsContent(prev => ({ ...prev, [id]: value }));
+    } else if (docType === 'risk-map') {
+      setRiskMapSectionsContent(prev => ({ ...prev, [id]: value }));
+    }
   };
 
   const getRagContext = useCallback(async (query: string): Promise<string> => {
@@ -854,11 +905,14 @@ const App: React.FC = () => {
     
     if(docType === 'etp') {
       const demandaText = currentSections['etp-2'] || '';
-      if(sectionId !== 'etp-2' && !demandaText.trim()) {
-        addNotification('info', 'Atenção', "Por favor, preencha a seção '2. Descrição da Necessidade da Contratação' primeiro, pois ela serve de base para as outras.");
-        setValidationErrors(new Set(['etp-2']));
-        setLoadingSection(null);
-        return;
+      if (sectionId !== 'etp-2') {
+        // R.V-01: Quality Gate
+        if (demandaText.trim().length < 200) {
+            addNotification('error', 'Contexto Insuficiente', "O campo '2. Descrição da Necessidade' deve ter no mínimo 200 caracteres para permitir uma geração de conteúdo de qualidade pela IA.");
+            setValidationErrors(prev => new Set(prev).add('etp-2'));
+            setLoadingSection(null);
+            return;
+        }
       }
       context = `Contexto Principal (Descrição da Necessidade): ${demandaText}\n`;
       allSections.forEach(sec => {
@@ -912,6 +966,17 @@ const App: React.FC = () => {
     } finally {
         setLoadingSection(null);
     }
+  };
+
+  const handleAcceptGeneratedContent = () => {
+    if (!generatedContentModal) return;
+    const { docType, sectionId, content } = generatedContentModal;
+    
+    // R.R-01: Mark field as generated by AI
+    setAiGeneratedFields(prev => new Set(prev).add(sectionId));
+    
+    handleSectionChange(docType, sectionId, content);
+    setGeneratedContentModal(null);
   };
 
   const handleGenerateTrFromEtp = async () => {
@@ -1056,7 +1121,11 @@ ${content}
 
     const requiredFields: { [key in DocumentType]?: { id: string; name: string }[] } = {
         etp: [
-            { id: 'etp-2', name: '2. Descrição da Necessidade da Contratação' },
+            { id: 'etp-2', name: '2. Descrição da Necessidade' },
+            { id: 'etp-7', name: '7. Estimativas das Quantidades' },
+            { id: 'etp-8', name: '8. Estimativa do Valor' },
+            { id: 'etp-9', name: '9. Justificativa para o Parcelamento' },
+            { id: 'etp-15', name: '15. Declaração da Viabilidade' },
         ],
         tr: [
             { id: 'tr-1', name: '1. Objeto' },
@@ -1066,7 +1135,6 @@ ${content}
     const fieldsToValidate = requiredFields[docType] || [];
 
     fieldsToValidate.forEach(field => {
-        // FIX: Safely call .trim() by ensuring the value from sections is treated as a string.
         if (!sections[field.id] || String(sections[field.id] || '').trim() === '') {
             errors.push(`O campo "${field.name}" é obrigatório.`);
             errorFields.add(field.id);
@@ -1096,7 +1164,7 @@ ${content}
     if (docType === 'etp') {
       const newDoc: SavedDocument = {
         id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...sections },
-        attachments: etpAttachments, history: [], priority: currentEtpPriority,
+        attachments: etpAttachments, history: [], priority: currentEtpPriority, status: 'draft',
       };
       const updatedETPs = [...savedETPs, newDoc];
       setSavedETPs(updatedETPs);
@@ -1105,7 +1173,7 @@ ${content}
     } else if (docType === 'tr') {
       const newDoc: SavedDocument = {
         id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...sections },
-        attachments: trAttachments, history: [], priority: currentTrPriority,
+        attachments: trAttachments, history: [], priority: currentTrPriority, status: 'draft',
       };
       const updatedTRs = [...savedTRs, newDoc];
       setSavedTRs(updatedTRs);
@@ -1114,7 +1182,7 @@ ${content}
     } else if (docType === 'risk-map') {
         const newDoc: SavedDocument = {
             id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...riskMapSectionsContent },
-            priority: currentRiskMapPriority, history: [],
+            priority: currentRiskMapPriority, history: [], status: 'draft',
             riskMapData: { revisionHistory, riskIdentification, riskEvaluation, riskMonitoring }
         };
         const updatedMaps = [...savedRiskMaps, newDoc];
@@ -1128,11 +1196,13 @@ ${content}
     const docs = docType === 'etp' ? savedETPs : docType === 'tr' ? savedTRs : savedRiskMaps;
     const docToLoad = docs.find(doc => doc.id === id);
     if(docToLoad) {
+      setAiGeneratedFields(new Set()); // Clear AI highlights when loading a new doc
       if (docType === 'etp') {
         setEtpSectionsContent(docToLoad.sections);
         setEtpAttachments(docToLoad.attachments || []);
         setCurrentEtpPriority(docToLoad.priority || 'medium');
         storage.saveFormState('etpFormState', docToLoad.sections);
+        setBrandAlertShownForEtp4(false);
       } else if (docType === 'tr') {
         setTrSectionsContent(docToLoad.sections);
         setTrAttachments(docToLoad.attachments || []);
@@ -1210,6 +1280,34 @@ ${content}
   const handleEditorBlur = (e: React.FocusEvent<HTMLDivElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       handleUpdateDocumentDetails();
+    }
+  };
+
+  const handleToggleDocStatus = (docType: DocumentType, id: number) => {
+    const updateDocs = (docs: SavedDocument[]) => {
+        return docs.map(doc => {
+            if (doc.id === id) {
+                // FIX: Explicitly type `newStatus` to prevent type widening to `string`.
+                const newStatus: 'draft' | 'reviewed' = (doc.status === 'reviewed' || !doc.status) ? 'draft' : 'reviewed';
+                addNotification('info', 'Status Alterado', `O documento "${doc.name}" foi marcado como "${newStatus === 'reviewed' ? 'Revisado' : 'Rascunho'}".`);
+                return { ...doc, status: newStatus };
+            }
+            return doc;
+        });
+    };
+
+    if (docType === 'etp') {
+        const updated = updateDocs(savedETPs);
+        setSavedETPs(updated);
+        storage.saveETPs(updated);
+    } else if (docType === 'tr') {
+        const updated = updateDocs(savedTRs);
+        setSavedTRs(updated);
+        storage.saveTRs(updated);
+    } else if (docType === 'risk-map') {
+        const updated = updateDocs(savedRiskMaps);
+        setSavedRiskMaps(updated);
+        storage.saveRiskMaps(updated);
     }
   };
 
@@ -1550,11 +1648,13 @@ Solicitação do usuário: "${refinePrompt}"
   };
   
   const handleClearForm = useCallback((docType: DocumentType) => () => {
+    setAiGeneratedFields(new Set());
     if (docType === 'etp') {
         setEtpSectionsContent({});
         setEtpAttachments([]);
         setCurrentEtpPriority('medium');
         storage.saveFormState('etpFormState', {});
+        setBrandAlertShownForEtp4(false);
     } else if (docType === 'tr') {
         setTrSectionsContent({});
         setTrAttachments([]);
@@ -1875,11 +1975,13 @@ Solicitação do usuário: "${refinePrompt}"
   const handleCreateFromTemplate = useCallback((template: Template) => {
       setIsNewDocModalOpen(false);
       switchView(template.type);
+      setAiGeneratedFields(new Set());
       if (template.type === 'etp') {
           setEtpSectionsContent(template.sections);
           setEtpAttachments([]);
           setCurrentEtpPriority('medium');
           storage.saveFormState('etpFormState', template.sections);
+          setBrandAlertShownForEtp4(false);
       } else {
           setTrSectionsContent(template.sections);
           setTrAttachments([]);
@@ -2146,6 +2248,7 @@ Solicitação do usuário: "${refinePrompt}"
                                       {/* Name and Priority */}
                                       <div className="flex items-center gap-2 truncate flex-1 min-w-0">
                                           <PriorityIndicator priority={etp.priority} />
+                                          <div title={etp.status === 'reviewed' ? 'Revisado' : 'Rascunho'} className={`w-3 h-3 rounded-full flex-shrink-0 ${etp.status === 'reviewed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                                           <span className="text-sm font-medium text-slate-700 truncate" title={etp.name}>{etp.name}</span>
                                       </div>
                                       {/* Date */}
@@ -2158,6 +2261,7 @@ Solicitação do usuário: "${refinePrompt}"
                                       </div>
                                       {/* Actions */}
                                       <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleToggleDocStatus('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-teal-600" title={etp.status === 'reviewed' ? "Marcar como Rascunho" : "Marcar como Revisado"}><Icon name={etp.status === 'reviewed' ? "undo" : "check-double"} /></button>
                                         <button onClick={() => handleStartEditing('etp', etp)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
                                         <button onClick={() => handleLoadDocument('etp', etp.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
                                         <button onClick={() => { setPreviewContext({ type: 'etp', id: etp.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
@@ -2223,6 +2327,7 @@ Solicitação do usuário: "${refinePrompt}"
                                       {/* Name and Priority */}
                                       <div className="flex items-center gap-2 truncate flex-1 min-w-0">
                                           <PriorityIndicator priority={tr.priority} />
+                                          <div title={tr.status === 'reviewed' ? 'Revisado' : 'Rascunho'} className={`w-3 h-3 rounded-full flex-shrink-0 ${tr.status === 'reviewed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                                           <span className="text-sm font-medium text-slate-700 truncate" title={tr.name}>{tr.name}</span>
                                       </div>
                                       {/* Date */}
@@ -2235,6 +2340,7 @@ Solicitação do usuário: "${refinePrompt}"
                                       </div>
                                       {/* Actions */}
                                       <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleToggleDocStatus('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-teal-600" title={tr.status === 'reviewed' ? "Marcar como Rascunho" : "Marcar como Revisado"}><Icon name={tr.status === 'reviewed' ? "undo" : "check-double"} /></button>
                                         <button onClick={() => handleStartEditing('tr', tr)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
                                         <button onClick={() => handleLoadDocument('tr', tr.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
                                         <button onClick={() => { setPreviewContext({ type: 'tr', id: tr.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
@@ -2299,6 +2405,7 @@ Solicitação do usuário: "${refinePrompt}"
                                   <div className="flex items-center justify-between w-full gap-4">
                                       <div className="flex items-center gap-2 truncate flex-1 min-w-0">
                                           <PriorityIndicator priority={map.priority} />
+                                          <div title={map.status === 'reviewed' ? 'Revisado' : 'Rascunho'} className={`w-3 h-3 rounded-full flex-shrink-0 ${map.status === 'reviewed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                                           <span className="text-sm font-medium text-slate-700 truncate" title={map.name}>{map.name}</span>
                                       </div>
                                       <div className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0" title={map.updatedAt ? `Atualizado em: ${new Date(map.updatedAt).toLocaleString('pt-BR')}` : ''}>
@@ -2307,9 +2414,9 @@ Solicitação do usuário: "${refinePrompt}"
                                           )}
                                       </div>
                                       <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleToggleDocStatus('risk-map', map.id)} className="w-6 h-6 text-slate-500 hover:text-teal-600" title={map.status === 'reviewed' ? "Marcar como Rascunho" : "Marcar como Revisado"}><Icon name={map.status === 'reviewed' ? "undo" : "check-double"} /></button>
                                         <button onClick={() => handleStartEditing('risk-map', map)} className="w-6 h-6 text-slate-500 hover:text-yellow-600" title="Renomear"><Icon name="pencil-alt" /></button>
                                         <button onClick={() => handleLoadDocument('risk-map', map.id)} className="w-6 h-6 text-slate-500 hover:text-blue-600" title="Carregar"><Icon name="upload" /></button>
-                                        <button onClick={() => { setPreviewContext({ type: 'risk-map', id: map.id }); setIsPreviewModalOpen(true); }} className="w-6 h-6 text-slate-500 hover:text-green-600" title="Pré-visualizar"><Icon name="eye" /></button>
                                         <button onClick={() => displayDocumentHistory(map)} className="w-6 h-6 text-slate-500 hover:text-purple-600" title="Ver Histórico"><Icon name="history" /></button>
                                         <button onClick={() => handleDeleteDocument('risk-map', map.id)} className="w-6 h-6 text-slate-500 hover:text-red-600" title="Apagar"><Icon name="trash" /></button>
                                       </div>
@@ -2566,111 +2673,114 @@ Solicitação do usuário: "${refinePrompt}"
                         isLoading={loadingSection === section.id}
                         hasError={validationErrors.has(section.id)}
                         tooltip={section.tooltip}
+                        isAiGenerated={aiGeneratedFields.has(section.id)}
                     />
                   );
                 })}
                 <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
-                    <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
-                        <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
-                        <button onClick={handleClearForm('etp')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                            <Icon name="eraser" /> <span>Limpar<span className="hidden sm:inline"> Formulário</span></span>
+                    <div className="grid grid-cols-2 md:flex md:justify-end md:items-center gap-4">
+                        <button
+                            onClick={handleClearForm('etp')}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                            <Icon name="times-circle" />
+                            Limpar
                         </button>
-                        <button onClick={() => handleSaveDocument('etp')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
-                            <Icon name="save" /> <span>Salvar<span className="hidden sm:inline"> ETP</span></span>
+                        <button
+                            onClick={() => handleSaveDocument('etp')}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Icon name="save" />
+                            Guardar ETP
                         </button>
                     </div>
                 </div>
             </div>
 
             <div className={`${activeView === 'tr' ? 'block' : 'hidden'}`}>
-                <div className="bg-white p-6 rounded-xl shadow-sm mb-6 space-y-6">
-                    <div>
-                        <label htmlFor="etp-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar ETP para Contexto</label>
-                        <p className="text-sm text-slate-500 mb-4">Selecione um Estudo Técnico Preliminar (ETP) para usar como base de contexto ou para gerar automaticamente o Termo de Referência (TR) com IA.</p>
-                        <div className="flex flex-col sm:flex-row items-start gap-3">
+                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
+                   <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 border-b pb-4 gap-4">
+                     <h2 className="text-lg font-semibold text-slate-700">Dados do Termo de Referência</h2>
+                     <PrioritySelector priority={currentTrPriority} setPriority={setCurrentTrPriority} />
+                   </div>
+                   
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
+                        <div>
+                            <label htmlFor="etp-selector" className="block text-sm font-medium text-slate-600 mb-1">
+                                <Icon name="link" className="mr-1" />
+                                Carregar ETP para Contexto
+                            </label>
                             <select
                                 id="etp-selector"
                                 onChange={(e) => handleLoadEtpForTr(e.target.value)}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                defaultValue=""
+                                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50"
                             >
-                                <option value="">-- Selecione um ETP --</option>
-                                {savedETPs.map(etp => (
-                                    <option key={etp.id} value={etp.id}>{etp.name}</option>
-                                ))}
+                                <option value="">Nenhum ETP selecionado</option>
+                                {savedETPs.map(etp => <option key={etp.id} value={etp.id}>{etp.name}</option>)}
                             </select>
-                            <button
-                                onClick={handleGenerateTrFromEtp}
-                                disabled={!loadedEtpForTr || isConvertingEtpToTr}
-                                title={!loadedEtpForTr ? "Selecione um ETP primeiro" : "Gerar rascunho do TR usando IA"}
-                                className="flex items-center justify-center gap-2 w-full sm:w-auto flex-shrink-0 px-4 py-3 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Icon name={isConvertingEtpToTr ? 'spinner' : 'wand-magic-sparkles'} className={isConvertingEtpToTr ? 'fa-spin' : ''} />
-                                <span>Gerar TR com IA</span>
-                            </button>
                         </div>
-                        {loadedEtpForTr && (
-                            <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                                <p className="font-semibold">Contexto do ETP "{loadedEtpForTr.name}" carregado.</p>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <label htmlFor="risk-map-selector" className="block text-lg font-semibold text-slate-700 mb-3">Carregar Mapa de Riscos para Contexto</label>
-                        <p className="text-sm text-slate-500 mb-4">Selecione um Mapa de Riscos salvo para que a IA o considere ao gerar o Termo de Referência.</p>
-                        <select
-                            id="risk-map-selector"
-                            onChange={(e) => handleLoadRiskMapForTr(e.target.value)}
-                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            defaultValue=""
-                        >
-                            <option value="">-- Selecione um Mapa de Riscos --</option>
-                            {savedRiskMaps.map(map => (
-                                <option key={map.id} value={map.id}>{map.name}</option>
-                            ))}
-                        </select>
-                        {loadedRiskMapForTr && (
-                            <div className="mt-4 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-r-lg">
-                                <p className="font-semibold">Mapa de Riscos "{loadedRiskMapForTr.name}" carregado com sucesso.</p>
-                            </div>
-                        )}
-                    </div>
+                        <div>
+                            <label htmlFor="risk-map-selector" className="block text-sm font-medium text-slate-600 mb-1">
+                                <Icon name="shield-alt" className="mr-1" />
+                                Carregar Mapa de Risco para Contexto
+                            </label>
+                             <select
+                                id="risk-map-selector"
+                                onChange={(e) => handleLoadRiskMapForTr(e.target.value)}
+                                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                            >
+                                <option value="">Nenhum Mapa de Risco selecionado</option>
+                                {savedRiskMaps.map(map => <option key={map.id} value={map.id}>{map.name}</option>)}
+                            </select>
+                        </div>
+                   </div>
+                   {loadedEtpForTr && (
+                       <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                          <div className="flex justify-between items-start">
+                             <div>
+                               <p className="font-semibold text-blue-800">
+                                <Icon name="check-circle" className="mr-2 text-blue-600" />
+                                Contexto do ETP carregado: <b>{loadedEtpForTr.name}</b>
+                               </p>
+                               <p className="text-blue-700 mt-1 pl-6">
+                                A IA utilizará este documento como base principal para gerar o conteúdo do TR.
+                               </p>
+                             </div>
+                              <button onClick={handleImportEtpAttachments} className="flex-shrink-0 ml-4 flex items-center gap-1.5 text-xs font-bold bg-blue-200 text-blue-800 px-2 py-1 rounded-full hover:bg-blue-300 transition-colors">
+                                <Icon name="paperclip"/>
+                                Importar Anexos
+                              </button>
+                           </div>
+                       </div>
+                   )}
+                   {loadedRiskMapForTr && (
+                       <div className="mt-2 p-4 bg-orange-50 border border-orange-200 rounded-lg text-sm">
+                           <p className="font-semibold text-orange-800">
+                            <Icon name="check-circle" className="mr-2 text-orange-600" />
+                            Contexto do Mapa de Riscos carregado: <b>{loadedRiskMapForTr.name}</b>
+                           </p>
+                           <p className="text-orange-700 mt-1 pl-6">
+                            A IA utilizará os riscos mapeados para sugerir cláusulas e obrigações mais robustas no TR.
+                           </p>
+                       </div>
+                   )}
+                   {isConvertingEtpToTr && (
+                        <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm flex items-center gap-3">
+                           <Icon name="spinner" className="fa-spin text-purple-600 text-lg" />
+                           <div className="flex-1">
+                                <p className="font-semibold text-purple-800">A converter o ETP para TR...</p>
+                                <p className="text-purple-700">A IA está a analisar o documento e a preencher as seções. Por favor, aguarde.</p>
+                           </div>
+                       </div>
+                   )}
                 </div>
-
-                <div className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
-                    <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 border-b pb-3 gap-4">
-                        <h2 className="text-lg font-semibold text-slate-700">Dados do Termo de Referência</h2>
-                        <PrioritySelector priority={currentTrPriority} setPriority={setCurrentTrPriority} />
-                    </div>
-                </div>
-
+                
                 {trSections.map(section => {
-                  if (section.isAttachmentSection) {
-                    return (
+                    if (section.isAttachmentSection) {
+                      // This block is currently not used for TR, but kept for future-proofing
+                       return (
                         <div key={section.id} className="bg-white p-6 rounded-xl shadow-sm mb-6 transition-all hover:shadow-md">
-                            <div className="flex justify-between items-center mb-3 flex-wrap gap-y-3">
-                                 <div className="flex items-center gap-2">
-                                    <label className="block text-lg font-semibold text-slate-700">{section.title}</label>
-                                    {section.tooltip && <Icon name="question-circle" className="text-slate-400 cursor-help" title={section.tooltip} />}
-                                 </div>
-                                 <button
-                                    onClick={handleImportEtpAttachments}
-                                    disabled={!loadedEtpForTr}
-                                    className="px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Importar todos os anexos do ETP carregado"
-                                 >
-                                    <Icon name="file-import" className="mr-2" />
-                                    Importar do ETP
-                                 </button>
-                            </div>
-                            <textarea
-                                id={section.id}
-                                value={trSectionsContent[section.id] || ''}
-                                onChange={(e) => handleSectionChange('tr', section.id, e.target.value)}
-                                placeholder={section.placeholder}
-                                className="w-full h-24 p-3 bg-slate-50 border rounded-lg focus:ring-2 focus:border-blue-500 transition-colors border-slate-200 focus:ring-blue-500 mb-4"
-                            />
-                            
+                            <h2 className="text-lg font-semibold text-slate-700 mb-3">{section.title}</h2>
                             <AttachmentManager
                                 attachments={trAttachments}
                                 onAttachmentsChange={setTrAttachments}
@@ -2678,582 +2788,495 @@ Solicitação do usuário: "${refinePrompt}"
                                 addNotification={addNotification}
                             />
                         </div>
+                       );
+                    }
+                    return (
+                        <Section
+                            key={section.id}
+                            id={section.id}
+                            title={section.title}
+                            placeholder={section.placeholder}
+                            value={trSectionsContent[section.id]}
+                            onChange={(id, value) => handleSectionChange('tr', id, value)}
+                            onGenerate={() => handleGenerate('tr', section.id, section.title)}
+                            hasGen={section.hasGen}
+                            onAnalyze={() => handleRiskAnalysis('tr', section.id, section.title)}
+                            hasRiskAnalysis={section.hasRiskAnalysis}
+                            onEdit={() => handleOpenEditModal('tr', section.id, section.title)}
+                            isLoading={loadingSection === section.id}
+                            hasError={validationErrors.has(section.id)}
+                            tooltip={section.tooltip}
+                            isAiGenerated={aiGeneratedFields.has(section.id)}
+                        />
                     );
-                  }
-                  return (
-                    <Section
-                        key={section.id}
-                        id={section.id}
-                        title={section.title}
-                        placeholder={section.placeholder}
-                        value={trSectionsContent[section.id]}
-                        onChange={(id, value) => handleSectionChange('tr', id, value)}
-                        onGenerate={() => handleGenerate('tr', section.id, section.title)}
-                        hasGen={section.hasGen}
-                        isLoading={loadingSection === section.id}
-                        onAnalyze={() => handleRiskAnalysis('tr', section.id, section.title)}
-                        hasRiskAnalysis={section.hasRiskAnalysis}
-                        onEdit={() => handleOpenEditModal('tr', section.id, section.title)}
-                        hasError={validationErrors.has(section.id)}
-                        tooltip={section.tooltip}
-                    />
-                  );
                 })}
                 <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:flex md:items-center">
-                        <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
-                        <button onClick={handleClearForm('tr')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                            <Icon name="eraser" /> Limpar
-                        </button>
-                         <button 
-                            onClick={handleComplianceCheck}
-                            disabled={isCheckingCompliance}
-                            className="bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    <div className="grid grid-cols-2 md:grid-cols-4 md:flex md:justify-end md:items-center gap-4">
+                        <button
+                          onClick={handleGenerateTrFromEtp}
+                          disabled={!loadedEtpForTr || isConvertingEtpToTr}
+                          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={!loadedEtpForTr ? "Carregue um ETP para ativar esta função" : "Gerar TR a partir do ETP"}
                         >
-                            <Icon name="check-double" /> {isCheckingCompliance ? 'A verificar...' : 'Verificar'}
+                            <Icon name="wand-magic-sparkles" />
+                            Gerar TR com IA
                         </button>
-                        <button onClick={() => handleSaveDocument('tr')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
-                            <Icon name="save" /> Salvar TR
+                        <button
+                          onClick={handleComplianceCheck}
+                          disabled={isCheckingCompliance}
+                          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-teal-700 bg-teal-100 rounded-lg hover:bg-teal-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Verificar conformidade do TR com a Lei 14.133/21"
+                        >
+                            <Icon name="balance-scale" />
+                            Verificar Conformidade
+                        </button>
+                        <button
+                            onClick={handleClearForm('tr')}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                            <Icon name="times-circle" />
+                            Limpar
+                        </button>
+                        <button
+                            onClick={() => handleSaveDocument('tr')}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Icon name="save" />
+                            Guardar TR
                         </button>
                     </div>
                 </div>
             </div>
 
             <div className={`${activeView === 'risk-map' ? 'block' : 'hidden'}`}>
-                <div className="space-y-6">
-                    {/* Histórico de Revisões */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-semibold text-slate-700">Histórico de Revisões</h2>
-                            <button onClick={addRevisionHistoryRow} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar</button>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3">Data</th>
-                                        <th className="px-4 py-3">Versão</th>
-                                        <th className="px-4 py-3">Descrição</th>
-                                        <th className="px-4 py-3">Fase</th>
-                                        <th className="px-4 py-3">Autor</th>
-                                        <th className="px-4 py-3">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {revisionHistory.map(row => (
-                                        <tr key={row.id} className="bg-white border-b">
-                                            <td className="px-2 py-2"><input type="text" value={row.date} onChange={e => handleRevisionHistoryChange(row.id, 'date', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.version} onChange={e => handleRevisionHistoryChange(row.id, 'version', e.target.value)} className="w-20 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.description} onChange={e => handleRevisionHistoryChange(row.id, 'description', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.phase} onChange={e => handleRevisionHistoryChange(row.id, 'phase', e.target.value)} className="w-24 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.author} onChange={e => handleRevisionHistoryChange(row.id, 'author', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><button onClick={() => removeRevisionHistoryRow(row.id)} className="text-red-500 hover:text-red-700"><Icon name="trash" /></button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                {/* Intro Section */}
+                <Section
+                    id={riskMapSections[0].id}
+                    title={riskMapSections[0].title}
+                    placeholder={riskMapSections[0].placeholder}
+                    value={riskMapSectionsContent[riskMapSections[0].id]}
+                    onChange={(id, value) => handleSectionChange('risk-map', id, value)}
+                    onGenerate={() => handleGenerate('risk-map', riskMapSections[0].id, riskMapSections[0].title)}
+                    hasGen={riskMapSections[0].hasGen}
+                    tooltip={riskMapSections[0].tooltip}
+                    isAiGenerated={aiGeneratedFields.has(riskMapSections[0].id)}
+                />
 
-                    {/* Introdução */}
-                    {riskMapSections.map(section => (
-                         <Section
-                            key={section.id}
-                            id={section.id}
-                            title={section.title}
-                            placeholder={section.placeholder}
-                            value={riskMapSectionsContent[section.id]}
-                            onChange={(id, value) => handleSectionChange('risk-map', id, value)}
-                            onGenerate={() => {}} 
-                            hasGen={false}
-                            tooltip={section.tooltip}
-                        />
-                    ))}
-
-                    {/* 2 – IDENTIFICAÇÃO E ANÁLISE DOS PRINCIPAIS RISCOS */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-semibold text-slate-700">2 – Identificação e Análise dos Principais Riscos</h2>
-                            <button onClick={addRiskIdentificationRow} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar</button>
-                        </div>
-                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3">Id</th>
-                                        <th className="px-4 py-3">Risco</th>
-                                        <th className="px-4 py-3">Relacionado ao(à)</th>
-                                        <th className="px-4 py-3">P</th>
-                                        <th className="px-4 py-3">I</th>
-                                        <th className="px-4 py-3">Nível de Risco (P x I)</th>
-                                        <th className="px-4 py-3">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {riskIdentification.map(row => {
-                                        const p = parseInt(row.probability, 10) || 0;
-                                        const i = parseInt(row.impact, 10) || 0;
-                                        const riskLevel = p * i;
-                                        return (
-                                            <tr key={row.id} className="bg-white border-b">
-                                                <td className="px-2 py-2"><input type="text" value={row.riskId} onChange={e => handleRiskIdentificationChange(row.id, 'riskId', e.target.value)} className="w-20 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                                <td className="px-2 py-2"><input type="text" value={row.risk} onChange={e => handleRiskIdentificationChange(row.id, 'risk', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                                <td className="px-2 py-2"><input type="text" value={row.relatedTo} onChange={e => handleRiskIdentificationChange(row.id, 'relatedTo', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                                <td className="px-2 py-2"><input type="number" value={row.probability} onChange={e => handleRiskIdentificationChange(row.id, 'probability', e.target.value)} className="w-16 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                                <td className="px-2 py-2"><input type="number" value={row.impact} onChange={e => handleRiskIdentificationChange(row.id, 'impact', e.target.value)} className="w-16 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                                <td className="px-2 py-2"><span className="font-bold">{riskLevel}</span></td>
-                                                <td className="px-2 py-2"><button onClick={() => removeRiskIdentificationRow(row.id)} className="text-red-500 hover:text-red-700"><Icon name="trash" /></button></td>
-                                            </tr>
-                                        )
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                {/* --- Dynamic Tables UI for Risk Map --- */}
+                
+                {/* 2. Histórico de Revisões */}
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">2. Histórico de Revisões</h3>
+                    <div className="space-y-4">
+                        {revisionHistory.map((row, index) => (
+                            <div key={row.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 border rounded-lg bg-slate-50 relative">
+                               <button onClick={() => removeRevisionHistoryRow(row.id)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors">&times;</button>
+                               <input type="text" value={row.date} onChange={(e) => handleRevisionHistoryChange(row.id, 'date', e.target.value)} placeholder="Data (DD/MM/AAAA)" className="md:col-span-1 p-2 border rounded" />
+                               <input type="text" value={row.version} onChange={(e) => handleRevisionHistoryChange(row.id, 'version', e.target.value)} placeholder="Versão" className="md:col-span-1 p-2 border rounded" />
+                               <input type="text" value={row.phase} onChange={(e) => handleRevisionHistoryChange(row.id, 'phase', e.target.value)} placeholder="Fase" className="md:col-span-1 p-2 border rounded" />
+                               <input type="text" value={row.author} onChange={(e) => handleRevisionHistoryChange(row.id, 'author', e.target.value)} placeholder="Autor" className="md:col-span-1 p-2 border rounded" />
+                               <input type="text" value={row.description} onChange={(e) => handleRevisionHistoryChange(row.id, 'description', e.target.value)} placeholder="Descrição da Alteração" className="md:col-span-2 p-2 border rounded" />
+                            </div>
+                        ))}
                     </div>
-                    
-                    {/* 3 – AVALIAÇÃO E TRATAMENTO DOS RISCOS IDENTIFICADOS */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                             <h2 className="text-lg font-semibold text-slate-700">3 – Avaliação e Tratamento dos Riscos Identificados</h2>
-                            <button onClick={addRiskEvaluationBlock} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar Avaliação</button>
-                        </div>
-                        <div className="space-y-4">
-                            {riskEvaluation.map(block => (
-                                <div key={block.id} className="border border-slate-200 rounded-lg p-4 relative">
-                                    <button onClick={() => removeRiskEvaluationBlock(block.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><Icon name="times-circle" /></button>
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <input type="text" placeholder="Risco (ex: R01)" value={block.riskId} onChange={e => handleRiskEvaluationChange(block.id, 'riskId', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2" />
-                                        <textarea placeholder="Descrição do Risco" value={block.riskDescription} onChange={e => handleRiskEvaluationChange(block.id, 'riskDescription', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2 h-20" />
-                                        <input type="text" placeholder="Probabilidade" value={block.probability} onChange={e => handleRiskEvaluationChange(block.id, 'probability', e.target.value)} className="bg-slate-50 border-slate-200 rounded p-2" />
-                                        <input type="text" placeholder="Impacto" value={block.impact} onChange={e => handleRiskEvaluationChange(block.id, 'impact', e.target.value)} className="bg-slate-50 border-slate-200 rounded p-2" />
-                                        <input type="text" placeholder="Dano" value={block.damage} onChange={e => handleRiskEvaluationChange(block.id, 'damage', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2" />
-                                        <input type="text" placeholder="Tratamento" value={block.treatment} onChange={e => handleRiskEvaluationChange(block.id, 'treatment', e.target.value)} className="col-span-2 bg-slate-50 border-slate-200 rounded p-2" />
-                                    </div>
-                                    {/* Ações Preventivas */}
-                                    <div className="mb-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h3 className="font-semibold">Ações Preventivas</h3>
-                                            <button onClick={() => addRiskAction(block.id, 'preventive')} className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 flex items-center gap-1"><Icon name="plus" /> Ação</button>
-                                        </div>
-                                        {block.preventiveActions.map(action => (
-                                            <div key={action.id} className="grid grid-cols-12 gap-2 mb-1">
-                                                <input type="text" placeholder="Id" value={action.actionId} onChange={e => handleRiskActionChange(block.id, 'preventive', action.id, 'actionId', e.target.value)} className="col-span-1 bg-slate-50 border-slate-200 rounded p-1" />
-                                                <input type="text" placeholder="Ação" value={action.action} onChange={e => handleRiskActionChange(block.id, 'preventive', action.id, 'action', e.target.value)} className="col-span-6 bg-slate-50 border-slate-200 rounded p-1" />
-                                                <input type="text" placeholder="Responsável" value={action.responsible} onChange={e => handleRiskActionChange(block.id, 'preventive', action.id, 'responsible', e.target.value)} className="col-span-4 bg-slate-50 border-slate-200 rounded p-1" />
-                                                <button onClick={() => removeRiskAction(block.id, 'preventive', action.id)} className="col-span-1 text-red-500 hover:text-red-700"><Icon name="trash" /></button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {/* Ações de Contingência */}
+                    <button onClick={addRevisionHistoryRow} className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-800">+ Adicionar Linha</button>
+                </div>
+
+                {/* 3. Identificação e Análise dos Principais Riscos */}
+                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">3. Identificação e Análise dos Principais Riscos</h3>
+                    <div className="space-y-4">
+                       {riskIdentification.map((row) => (
+                           <div key={row.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 border rounded-lg bg-slate-50 relative">
+                                <button onClick={() => removeRiskIdentificationRow(row.id)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors">&times;</button>
+                                <input type="text" value={row.riskId} onChange={(e) => handleRiskIdentificationChange(row.id, 'riskId', e.target.value)} placeholder="ID do Risco" className="md:col-span-1 p-2 border rounded" />
+                                <input type="text" value={row.risk} onChange={(e) => handleRiskIdentificationChange(row.id, 'risk', e.target.value)} placeholder="Descrição do Risco" className="md:col-span-2 p-2 border rounded" />
+                                <input type="text" value={row.relatedTo} onChange={(e) => handleRiskIdentificationChange(row.id, 'relatedTo', e.target.value)} placeholder="Relacionado a" className="md:col-span-1 p-2 border rounded" />
+                                <input type="number" value={row.probability} onChange={(e) => handleRiskIdentificationChange(row.id, 'probability', e.target.value)} placeholder="Prob. (1-5)" className="md:col-span-1 p-2 border rounded" min="1" max="5" />
+                                <input type="number" value={row.impact} onChange={(e) => handleRiskIdentificationChange(row.id, 'impact', e.target.value)} placeholder="Impacto (1-5)" className="md:col-span-1 p-2 border rounded" min="1" max="5"/>
+                           </div>
+                       ))}
+                    </div>
+                    <button onClick={addRiskIdentificationRow} className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-800">+ Adicionar Risco</button>
+                </div>
+
+                {/* 4. Avaliação e Tratamento dos Riscos Identificados */}
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">4. Avaliação e Tratamento dos Riscos Identificados</h3>
+                    <div className="space-y-6">
+                        {riskEvaluation.map((block) => (
+                            <div key={block.id} className="p-4 border rounded-lg bg-slate-50 relative">
+                                <button onClick={() => removeRiskEvaluationBlock(block.id)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors">&times;</button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                                    <input type="text" value={block.riskId} onChange={(e) => handleRiskEvaluationChange(block.id, 'riskId', e.target.value)} placeholder="ID do Risco" className="p-2 border rounded" />
+                                    <input type="text" value={block.probability} onChange={(e) => handleRiskEvaluationChange(block.id, 'probability', e.target.value)} placeholder="Probabilidade" className="p-2 border rounded" />
+                                    <input type="text" value={block.impact} onChange={(e) => handleRiskEvaluationChange(block.id, 'impact', e.target.value)} placeholder="Impacto" className="p-2 border rounded" />
+                                    <input type="text" value={block.treatment} onChange={(e) => handleRiskEvaluationChange(block.id, 'treatment', e.target.value)} placeholder="Tratamento" className="p-2 border rounded" />
+                                </div>
+                                <textarea value={block.riskDescription} onChange={(e) => handleRiskEvaluationChange(block.id, 'riskDescription', e.target.value)} placeholder="Descrição do Risco" className="w-full p-2 border rounded mb-2" rows={2}/>
+                                <textarea value={block.damage} onChange={(e) => handleRiskEvaluationChange(block.id, 'damage', e.target.value)} placeholder="Dano" className="w-full p-2 border rounded mb-4" rows={2}/>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h3 className="font-semibold">Ações de Contingência</h3>
-                                            <button onClick={() => addRiskAction(block.id, 'contingency')} className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 flex items-center gap-1"><Icon name="plus" /> Ação</button>
-                                        </div>
-                                        {block.contingencyActions.map(action => (
-                                            <div key={action.id} className="grid grid-cols-12 gap-2 mb-1">
-                                                <input type="text" placeholder="Id" value={action.actionId} onChange={e => handleRiskActionChange(block.id, 'contingency', action.id, 'actionId', e.target.value)} className="col-span-1 bg-slate-50 border-slate-200 rounded p-1" />
-                                                <input type="text" placeholder="Ação" value={action.action} onChange={e => handleRiskActionChange(block.id, 'contingency', action.id, 'action', e.target.value)} className="col-span-6 bg-slate-50 border-slate-200 rounded p-1" />
-                                                <input type="text" placeholder="Responsável" value={action.responsible} onChange={e => handleRiskActionChange(block.id, 'contingency', action.id, 'responsible', e.target.value)} className="col-span-4 bg-slate-50 border-slate-200 rounded p-1" />
-                                                <button onClick={() => removeRiskAction(block.id, 'contingency', action.id)} className="col-span-1 text-red-500 hover:text-red-700"><Icon name="trash" /></button>
+                                        <h4 className="font-semibold text-sm mb-2">Ações Preventivas</h4>
+                                        {block.preventiveActions.map(action => (
+                                            <div key={action.id} className="flex gap-2 mb-2 items-center">
+                                                <input value={action.actionId} onChange={(e) => handleRiskActionChange(block.id, 'preventive', action.id, 'actionId', e.target.value)} placeholder="ID Ação" className="p-1 border rounded w-1/4"/>
+                                                <input value={action.action} onChange={(e) => handleRiskActionChange(block.id, 'preventive', action.id, 'action', e.target.value)} placeholder="Ação" className="p-1 border rounded w-1/2"/>
+                                                <input value={action.responsible} onChange={(e) => handleRiskActionChange(block.id, 'preventive', action.id, 'responsible', e.target.value)} placeholder="Responsável" className="p-1 border rounded w-1/4"/>
+                                                <button onClick={() => removeRiskAction(block.id, 'preventive', action.id)} className="text-red-500 hover:text-red-700">&times;</button>
                                             </div>
                                         ))}
+                                        <button onClick={() => addRiskAction(block.id, 'preventive')} className="text-xs font-semibold text-blue-600 hover:text-blue-800">+ Adicionar Ação</button>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-sm mb-2">Ações de Contingência</h4>
+                                        {block.contingencyActions.map(action => (
+                                            <div key={action.id} className="flex gap-2 mb-2 items-center">
+                                                <input value={action.actionId} onChange={(e) => handleRiskActionChange(block.id, 'contingency', action.id, 'actionId', e.target.value)} placeholder="ID Ação" className="p-1 border rounded w-1/4"/>
+                                                <input value={action.action} onChange={(e) => handleRiskActionChange(block.id, 'contingency', action.id, 'action', e.target.value)} placeholder="Ação" className="p-1 border rounded w-1/2"/>
+                                                <input value={action.responsible} onChange={(e) => handleRiskActionChange(block.id, 'contingency', action.id, 'responsible', e.target.value)} placeholder="Responsável" className="p-1 border rounded w-1/4"/>
+                                                <button onClick={() => removeRiskAction(block.id, 'contingency', action.id)} className="text-red-500 hover:text-red-700">&times;</button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => addRiskAction(block.id, 'contingency')} className="text-xs font-semibold text-blue-600 hover:text-blue-800">+ Adicionar Ação</button>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
-                    
-                    {/* 4 – ACOMPANHAMENTO DAS AÇÕES DE TRATAMENTO DE RISCOS */}
-                     <div className="bg-white p-6 rounded-xl shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-semibold text-slate-700">4 – Acompanhamento das Ações de Tratamento de Riscos</h2>
-                            <button onClick={addRiskMonitoringRow} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2"><Icon name="plus" /> Adicionar</button>
-                        </div>
-                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3">Data</th>
-                                        <th className="px-4 py-3">Id. Risco</th>
-                                        <th className="px-4 py-3">Id. Ação</th>
-                                        <th className="px-4 py-3">Registro e Acompanhamento</th>
-                                        <th className="px-4 py-3">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {riskMonitoring.map(row => (
-                                        <tr key={row.id} className="bg-white border-b">
-                                            <td className="px-2 py-2"><input type="text" value={row.date} onChange={e => handleRiskMonitoringChange(row.id, 'date', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.riskId} onChange={e => handleRiskMonitoringChange(row.id, 'riskId', e.target.value)} className="w-24 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.actionId} onChange={e => handleRiskMonitoringChange(row.id, 'actionId', e.target.value)} className="w-24 bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><input type="text" value={row.record} onChange={e => handleRiskMonitoringChange(row.id, 'record', e.target.value)} className="w-full bg-slate-50 border-slate-200 rounded p-1" /></td>
-                                            <td className="px-2 py-2"><button onClick={() => removeRiskMonitoringRow(row.id)} className="text-red-500 hover:text-red-700"><Icon name="trash" /></button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <button onClick={addRiskEvaluationBlock} className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-800">+ Adicionar Bloco de Avaliação</button>
+                </div>
 
-                     <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:flex md:items-center">
-                            <span className="hidden md:block text-sm text-slate-500 italic mr-auto transition-colors">{autoSaveStatus}</span>
-                            <button onClick={handleClearForm('risk-map')} className="bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors flex items-center justify-center gap-2">
-                                <Icon name="eraser" /> Limpar
-                            </button>
-                            <button onClick={handleExportRiskMapToPDF} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                                <Icon name="file-pdf" /> Visualizar PDF
-                            </button>
-                            <button onClick={() => handleSaveDocument('risk-map')} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
-                                <Icon name="save" /> Salvar Mapa
-                            </button>
-                        </div>
+                 {/* 5. Acompanhamento das Ações de Tratamento de Riscos */}
+                 <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">5. Acompanhamento das Ações de Tratamento de Riscos</h3>
+                    <div className="space-y-4">
+                        {riskMonitoring.map(row => (
+                            <div key={row.id} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 border rounded-lg bg-slate-50 relative">
+                                <button onClick={() => removeRiskMonitoringRow(row.id)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors">&times;</button>
+                                <input type="text" value={row.date} onChange={(e) => handleRiskMonitoringChange(row.id, 'date', e.target.value)} placeholder="Data" className="p-2 border rounded" />
+                                <input type="text" value={row.riskId} onChange={(e) => handleRiskMonitoringChange(row.id, 'riskId', e.target.value)} placeholder="ID Risco" className="p-2 border rounded" />
+                                <input type="text" value={row.actionId} onChange={(e) => handleRiskMonitoringChange(row.id, 'actionId', e.target.value)} placeholder="ID Ação" className="p-2 border rounded" />
+                                <input type="text" value={row.record} onChange={(e) => handleRiskMonitoringChange(row.id, 'record', e.target.value)} placeholder="Registro do Acompanhamento" className="p-2 border rounded" />
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={addRiskMonitoringRow} className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-800">+ Adicionar Registro</button>
+                </div>
+                
+                 <div className="mt-6 bg-white p-4 border-t border-slate-200 md:bg-transparent md:p-0 md:border-none">
+                    <div className="grid grid-cols-2 md:grid-cols-3 md:flex md:justify-end md:items-center gap-4">
+                        <button
+                            onClick={handleExportRiskMapToPDF}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors"
+                        >
+                            <Icon name="file-pdf" />
+                            Exportar PDF
+                        </button>
+                        <button
+                            onClick={handleClearForm('risk-map')}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                            <Icon name="times-circle" />
+                            Limpar
+                        </button>
+                        <button
+                            onClick={() => handleSaveDocument('risk-map')}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Icon name="save" />
+                            Guardar Mapa
+                        </button>
                     </div>
                 </div>
             </div>
 
-             <footer className="text-center mt-8 pt-6 border-t border-slate-200 text-slate-500 text-sm">
-                <a href="https://wa.me/5584999780963" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
-                    Desenvolvido por Danilo Arruda
-                </a>
-            </footer>
+            {/* Floating Action Button for mobile */}
+            <div className="md:hidden fixed bottom-24 right-6 z-40">
+                <button
+                    onClick={() => setIsNewDocModalOpen(true)}
+                    className="w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-blue-700 transition-all transform hover:scale-110"
+                    aria-label="Criar novo documento"
+                >
+                  <Icon name="plus" />
+                </button>
+            </div>
+            
+            <div className="hidden md:block fixed top-6 right-6 z-40">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 italic mr-2">{autoSaveStatus}</span>
+                    <button
+                        onClick={() => setIsNewDocModalOpen(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                        <Icon name="plus" />
+                        Novo Documento
+                    </button>
+                </div>
+            </div>
           </main>
-      </div>
-
-      <Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title="Sobre o TR Genius" maxWidth="max-w-2xl">
-          <div className="space-y-4 text-slate-600">
-              <p>O <b>TR Genius</b> é o seu assistente inteligente para a elaboração de documentos de contratação pública, totalmente alinhado com a Nova Lei de Licitações e Contratos (Lei 14.133/21).</p>
-                <ul className="list-none space-y-2">
-                    <li className="flex items-start"><Icon name="wand-magic-sparkles" className="text-blue-500 mt-1 mr-3" /> <div><b>Geração de ETP e TR com IA:</b> Crie secções inteiras dos seus documentos com um clique, com base no contexto que fornecer.</div></li>
-                    <li className="flex items-start"><Icon name="shield-alt" className="text-blue-500 mt-1 mr-3" /> <div><b>Análise de Riscos:</b> Identifique e mitigue potenciais problemas no seu projeto antes mesmo de ele começar.</div></li>
-                    <li className="flex items-start"><Icon name="check-double" className="text-blue-500 mt-1 mr-3" /> <div><b>Verificador de Conformidade:</b> Garanta que os seus Termos de Referência estão em conformidade com a legislação vigente.</div></li>
-                    <li className="flex items-start"><Icon name="file-alt" className="text-blue-500 mt-1 mr-3" /> <div><b>Contexto com Ficheiros:</b> Faça o upload de documentos para que a IA tenha um conhecimento ainda mais aprofundado sobre a sua necessidade específica.</div></li>
-                </ul>
-              <p>Esta ferramenta foi projetada para otimizar o seu tempo, aumentar a qualidade dos seus documentos e garantir a segurança jurídica das suas contratações.</p>
-          </div>
-      </Modal>
-
-      <Modal 
-        isOpen={isPreviewModalOpen} 
-        onClose={() => {
-          setIsPreviewModalOpen(false);
-          setViewingAttachment(null);
-          setSummaryState({ loading: false, content: null });
-        }} 
-        title="Pré-visualização do Documento" 
-        maxWidth="max-w-3xl"
-        footer={
-          <div className="flex justify-end">
-            <button
-              onClick={handleExportToPDF}
-              className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Icon name="file-pdf" className="mr-2" /> Exportar para PDF
-            </button>
-          </div>
-        }
-      >
+       </div>
+       
+       {isInstallBannerVisible && installPrompt && (
+          <InstallPWA onInstall={handleInstallClick} onDismiss={handleDismissInstallBanner} />
+       )}
+       
+       {/* Modals */}
+       <Modal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} title="Sobre o TR Genius">
+           <div>
+               <p className="text-slate-600 mb-4">O <b>TR Genius</b> é um assistente de IA projetado para otimizar a criação de Estudos Técnicos Preliminares (ETP) e Termos de Referência (TR), em total conformidade com a nova Lei de Licitações e Contratos (Lei nº 14.133/21).</p>
+               <h3 className="font-bold text-lg mb-2">Funcionalidades Principais</h3>
+               <ul className="list-disc list-inside space-y-2 text-slate-600">
+                   <li><b>Geração de Conteúdo com IA:</b> Utilize a IA da Google (Gemini) para gerar textos técnicos e bem fundamentados para cada seção dos seus documentos.</li>
+                   <li><b>Análise de Risco:</b> A IA analisa o conteúdo gerado para identificar e sugerir mitigações para potenciais riscos na sua contratação.</li>
+                   <li><b>Base de Conhecimento (RAG):</b> Faça o upload de documentos de apoio (leis, editais, etc.) para que a IA os utilize como contexto para respostas mais precisas.</li>
+                   <li><b>Verificação de Conformidade:</b> A IA audita o seu Termo de Referência, comparando-o com os requisitos da Lei 14.133/21 e fornecendo um relatório detalhado.</li>
+                   <li><b>Exportação para PDF:</b> Exporte seus documentos finalizados em formato PDF com aparência profissional.</li>
+               </ul>
+               <p className="text-xs text-slate-400 mt-6 text-center">Versão 1.0.0 | Desenvolvido com React, TypeScript e Tailwind CSS.</p>
+           </div>
+       </Modal>
+       
+       <Modal
+          isOpen={isPreviewModalOpen}
+          onClose={() => { setIsPreviewModalOpen(false); setSummaryState({ loading: false, content: null }); setViewingAttachment(null); }}
+          title="Pré-visualização do Documento"
+          maxWidth="max-w-4xl"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleExportToPDF}
+                className="flex items-center gap-2 bg-green-100 text-green-700 font-bold py-2 px-4 rounded-lg hover:bg-green-200 transition-colors"
+              >
+                <Icon name="file-pdf" />
+                Exportar para PDF
+              </button>
+              <button onClick={() => { setIsPreviewModalOpen(false); setSummaryState({ loading: false, content: null }); setViewingAttachment(null); }} className="py-2 px-4 font-bold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                Fechar
+              </button>
+            </div>
+          }
+       >
           {renderPreviewContent()}
-      </Modal>
-      
-      <Modal isOpen={isEditModalOpen} onClose={closeEditModal} title={`Editar: ${editingContent?.title}`} maxWidth="max-w-3xl">
+       </Modal>
+
+        <Modal isOpen={!!analysisContent.content} onClose={() => setAnalysisContent({ title: '', content: null })} title={analysisContent.title} maxWidth="max-w-3xl">
+          <ContentRenderer text={analysisContent.content} />
+        </Modal>
+
+        <Modal isOpen={isComplianceModalOpen} onClose={() => setIsComplianceModalOpen(false)} title="Análise de Conformidade do TR" maxWidth="max-w-4xl">
+            {isCheckingCompliance ? (
+                <div className="flex items-center justify-center p-8">
+                    <Icon name="spinner" className="fa-spin text-3xl text-blue-600 mr-4" />
+                    <span className="text-lg text-slate-700">A analisar...</span>
+                </div>
+            ) : (
+                <ContentRenderer text={complianceCheckResult} />
+            )}
+        </Modal>
+        
         {editingContent && (
-          <div>
-            <textarea
-              value={editingContent.text}
-              onChange={(e) => setEditingContent({ ...editingContent, text: e.target.value })}
-              className="w-full h-64 p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-colors mb-4"
-              disabled={isRefining}
-            />
-            <div className="bg-slate-100 p-4 rounded-lg mb-4">
-              <label htmlFor="refine-prompt" className="block text-sm font-semibold text-slate-600 mb-2">Peça à IA para refinar o texto acima:</label>
+          <Modal
+            isOpen={isEditModalOpen}
+            onClose={closeEditModal}
+            title={`Editar e Refinar: ${editingContent.title}`}
+            maxWidth="max-w-4xl"
+            footer={
+              <div className="flex justify-end items-center gap-3">
+                <button onClick={closeEditModal} className="px-4 py-2 font-bold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleSaveChanges} className="px-4 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                  Guardar Alterações
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <textarea
+                value={editingContent.text}
+                onChange={(e) => setEditingContent({ ...editingContent, text: e.target.value })}
+                className="w-full h-80 p-3 border rounded-lg focus:ring-2 focus:border-blue-500"
+              />
               <div className="flex gap-2">
                 <input
-                  id="refine-prompt"
                   type="text"
                   value={refinePrompt}
                   onChange={(e) => setRefinePrompt(e.target.value)}
-                  placeholder="Ex: 'Torne o tom mais formal' ou 'Adicione um parágrafo sobre sustentabilidade'"
-                  className="flex-grow p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-purple-500"
-                  disabled={isRefining}
+                  placeholder="Peça à IA para refinar o texto (ex: 'torne mais formal', 'resuma em 3 tópicos', 'expanda sobre a segurança')"
+                  className="flex-grow p-2 border rounded-lg focus:ring-2 focus:border-purple-500"
                 />
                 <button
                   onClick={handleRefineText}
-                  disabled={!refinePrompt || isRefining}
-                  className="bg-purple-600 text-white font-bold py-2 px-3 md:px-4 rounded-lg hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center"
+                  disabled={isRefining || !refinePrompt}
+                  className="flex items-center justify-center gap-2 px-4 py-2 font-semibold text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Icon name="wand-magic-sparkles" className="md:mr-2" />
-                  <span className="hidden md:inline">
-                    {isRefining ? 'A refinar...' : 'Assim mas...'}
-                  </span>
+                  <Icon name="wand-magic-sparkles" />
+                  {isRefining ? 'A refinar...' : 'Refinar'}
                 </button>
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={closeEditModal} className="bg-transparent border border-slate-400 text-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-100 transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                <Icon name="save" className="mr-2" /> Salvar Alterações
-              </button>
-            </div>
-          </div>
+          </Modal>
         )}
-    </Modal>
-
-      <Modal isOpen={!!analysisContent.content} onClose={() => setAnalysisContent({title: '', content: null})} title={analysisContent.title} maxWidth="max-w-3xl">
-          <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
-            <ContentRenderer text={analysisContent.content} />
-          </div>
-      </Modal>
-
-      <Modal
-        isOpen={isComplianceModalOpen}
-        onClose={() => setIsComplianceModalOpen(false)}
-        title="Relatório de Conformidade - Lei 14.133/21"
-        maxWidth="max-w-3xl"
-      >
-        {isCheckingCompliance && !complianceCheckResult.startsWith("Erro") ? (
-          <div className="flex items-center justify-center flex-col gap-4 p-8">
-              <Icon name="spinner" className="fa-spin text-4xl text-blue-600" />
-              <p className="text-slate-600 font-semibold">A IA está a analisar o seu documento... Por favor, aguarde.</p>
-          </div>
-        ) : (
-          <div className="p-4 bg-slate-50 rounded-lg max-h-[60vh] overflow-y-auto">
-              <ContentRenderer text={complianceCheckResult} />
-          </div>
-        )}
-        <div className="flex justify-end mt-4">
-          <button onClick={() => setIsComplianceModalOpen(false)} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">Fechar</button>
-        </div>
-      </Modal>
-
-      <Modal 
-        isOpen={!!historyModalContent} 
-        onClose={() => setHistoryModalContent(null)} 
-        title={`Histórico de: ${historyModalContent?.name}`}
-        maxWidth="max-w-6xl"
-      >
-        {historyModalContent && <HistoryViewer document={historyModalContent} allSections={[...etpSections, ...trSections]} />}
-      </Modal>
-
-    <Modal isOpen={isNewDocModalOpen} onClose={() => setIsNewDocModalOpen(false)} title="Criar Novo Documento" maxWidth="max-w-4xl">
-      <div className="space-y-4">
-        <p className="text-slate-600 mb-6">Comece com um template pré-definido para agilizar o seu trabalho ou crie um documento em branco.</p>
         
-        {/* ETP Templates */}
-        <div className="mb-8">
-            <h3 className="text-lg font-bold text-blue-800 mb-3 border-b-2 border-blue-200 pb-2">Estudo Técnico Preliminar (ETP)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <button 
-                    onClick={() => handleCreateNewDocument('etp')}
-                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                >
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <Icon name="file" className="text-slate-500 text-xl" />
-                            <p className="font-bold text-slate-700">Documento em Branco</p>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um ETP do zero.</p>
-                    </div>
-                </button>
-                {etpTemplates.map((template, index) => (
-                    <button 
-                        key={template.id}
-                        onClick={() => handleCreateFromTemplate(template)}
-                        className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${etpTemplateColors[index % etpTemplateColors.length]}`}
-                    >
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <Icon name="file-alt" className="text-current text-xl opacity-70" />
-                                <p className="font-bold">{template.name}</p>
-                            </div>
-                            <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
+        <Modal
+          isOpen={isNewDocModalOpen}
+          onClose={() => setIsNewDocModalOpen(false)}
+          title="Criar Novo Documento"
+          maxWidth="max-w-4xl"
+        >
+          <div className="space-y-6">
+              <div>
+                  <h3 className="font-bold text-lg mb-3 text-slate-800">Iniciar a partir de um formulário em branco:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <button onClick={() => handleCreateNewDocument('etp')} className="p-4 border rounded-lg text-left hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                          <Icon name="file-alt" className="text-2xl text-blue-500 mb-2"/>
+                          <h4 className="font-bold">Novo ETP</h4>
+                          <p className="text-sm text-slate-600">Comece um Estudo Técnico Preliminar do zero.</p>
+                      </button>
+                      <button onClick={() => handleCreateNewDocument('risk-map')} className="p-4 border rounded-lg text-left hover:bg-orange-50 hover:border-orange-300 transition-colors">
+                          <Icon name="shield-alt" className="text-2xl text-orange-500 mb-2"/>
+                          <h4 className="font-bold">Novo Mapa de Risco</h4>
+                          <p className="text-sm text-slate-600">Inicie um Mapa de Riscos para uma contratação.</p>
+                      </button>
+                      <button onClick={() => handleCreateNewDocument('tr')} className="p-4 border rounded-lg text-left hover:bg-purple-50 hover:border-purple-300 transition-colors">
+                          <Icon name="gavel" className="text-2xl text-purple-500 mb-2"/>
+                          <h4 className="font-bold">Novo TR</h4>
+                          <p className="text-sm text-slate-600">Comece um Termo de Referência em branco.</p>
+                      </button>
+                  </div>
+              </div>
 
-        {/* TR Templates */}
-        <div className="mb-8">
-            <h3 className="text-lg font-bold text-purple-800 mb-3 border-b-2 border-purple-200 pb-2">Termo de Referência (TR)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <button 
-                    onClick={() => handleCreateNewDocument('tr')}
-                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                >
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <Icon name="file" className="text-slate-500 text-xl" />
-                            <p className="font-bold text-slate-700">Documento em Branco</p>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um TR do zero.</p>
-                    </div>
-                </button>
-                {trTemplates.map((template, index) => (
-                    <button 
-                        key={template.id}
-                        onClick={() => handleCreateFromTemplate(template)}
-                        className={`w-full text-left p-4 rounded-lg transition-colors border flex flex-col justify-between h-full ${trTemplateColors[index % trTemplateColors.length]}`}
-                    >
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <Icon name="gavel" className="text-current text-xl opacity-70" />
-                                <p className="font-bold">{template.name}</p>
-                            </div>
-                            <p className="text-sm opacity-90 mt-2 pl-8">{template.description}</p>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
-        
-        {/* Risk Map Section */}
-        <div className="pt-4 border-t">
-            <h3 className="text-lg font-bold text-orange-800 mb-3 border-b-2 border-orange-200 pb-2">Mapa de Risco</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <button 
-                    onClick={() => handleCreateNewDocument('risk-map')}
-                    className="w-full text-left p-4 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border-2 border-dashed border-slate-300 flex flex-col justify-between h-full"
-                >
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <Icon name="shield-alt" className="text-slate-500 text-xl" />
-                            <p className="font-bold text-slate-700">Criar um Mapa de Risco em Branco</p>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2 pl-8">Comece um mapa de riscos do zero para a sua contratação.</p>
-                    </div>
-                </button>
-            </div>
-        </div>
-      </div>
-    </Modal>
-    
-    <Modal 
-      isOpen={isRagPreviewModalOpen} 
-      onClose={() => {
-        setIsRagPreviewModalOpen(false);
-        setViewingAttachment(null);
-      }} 
-      title={`Pré-visualização: ${viewingAttachment?.name}`}
-      maxWidth="max-w-4xl"
-    >
-      { viewingAttachment && (
-        <div className="w-full h-[70vh] bg-slate-100 rounded-lg border flex items-center justify-center">
-            {isLoadingPreview ? (
-                <div className="flex flex-col items-center gap-2 text-slate-600">
-                    <Icon name="spinner" className="fa-spin text-3xl" />
-                    <span>A carregar pré-visualização...</span>
-                </div>
-            ) : previewContent ? (
-                <div className="w-full h-full bg-white overflow-auto rounded-lg">
-                    {previewContent.type === 'text' ? (
-                        <pre className="text-sm whitespace-pre-wrap font-mono bg-slate-50 p-6 h-full">{previewContent.content}</pre>
-                    ) : (
-                        <div className="p-2 sm:p-8 bg-slate-100 min-h-full">
-                            <div className="prose max-w-4xl mx-auto p-8 bg-white shadow-lg" dangerouslySetInnerHTML={{ __html: previewContent.content }} />
-                        </div>
-                    )}
-                </div>
-            ) : viewingAttachment.type.startsWith('image/') ? (
-                <img src={getAttachmentDataUrl(viewingAttachment)} alt={viewingAttachment.name} className="max-w-full max-h-full object-contain" />
-            ) : viewingAttachment.type === 'application/pdf' ? (
-                <object data={getAttachmentDataUrl(viewingAttachment)} type="application/pdf" width="100%" height="100%">
-                    <p className="p-4 text-center text-slate-600">O seu navegador não suporta a pré-visualização de PDFs. <a href={getAttachmentDataUrl(viewingAttachment)} download={viewingAttachment.name} className="text-blue-600 hover:underline">Clique aqui para fazer o download.</a></p>
-                </object>
-            ) : (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                    <Icon name="file-download" className="text-5xl text-slate-400 mb-4" />
-                    <p className="text-slate-700 text-lg mb-2">A pré-visualização não está disponível para este tipo de ficheiro.</p>
-                    <p className="text-slate-500 mb-6 text-sm">({viewingAttachment.type})</p>
-                    <a 
-                        href={getAttachmentDataUrl(viewingAttachment)} 
-                        download={viewingAttachment.name}
-                        className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Icon name="download" />
-                        Fazer Download
-                    </a>
-                </div>
-            )}
-        </div>
-      )}
-    </Modal>
-    
-    <Modal
-        isOpen={!!generatedContentModal}
-        onClose={() => setGeneratedContentModal(null)}
-        title={`Conteúdo Gerado por IA para: ${generatedContentModal?.title}`}
-        maxWidth="max-w-3xl"
-        footer={
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setGeneratedContentModal(null)} className="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition-colors">
-              Cancelar
-            </button>
-            <button
-              onClick={() => {
-                if (generatedContentModal) {
-                  handleSectionChange(generatedContentModal.docType, generatedContentModal.sectionId, generatedContentModal.content);
-                  setGeneratedContentModal(null);
-                  addNotification('success', 'Sucesso', 'O conteúdo foi inserido na seção.');
-                }
-              }}
-              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+               <div>
+                  <h3 className="font-bold text-lg mb-3 text-slate-800">Ou use um template para começar mais rápido:</h3>
+                  <h4 className="font-semibold text-blue-700 mb-2">Templates de ETP</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {etpTemplates.map((template, index) => (
+                          <button key={template.id} onClick={() => handleCreateFromTemplate(template)} className={`p-4 border rounded-lg text-left transition-colors ${etpTemplateColors[index % etpTemplateColors.length]}`}>
+                              <h4 className="font-bold">{template.name}</h4>
+                              <p className="text-sm opacity-80">{template.description}</p>
+                          </button>
+                      ))}
+                  </div>
+                  <h4 className="font-semibold text-purple-700 mb-2 mt-4">Templates de TR</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {trTemplates.map((template, index) => (
+                          <button key={template.id} onClick={() => handleCreateFromTemplate(template)} className={`p-4 border rounded-lg text-left transition-colors ${trTemplateColors[index % trTemplateColors.length]}`}>
+                              <h4 className="font-bold">{template.name}</h4>
+                              <p className="text-sm opacity-80">{template.description}</p>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+        </Modal>
+
+        {historyModalContent && (
+            <Modal
+                isOpen={!!historyModalContent}
+                onClose={() => setHistoryModalContent(null)}
+                title={`Histórico de Versões: ${historyModalContent.name}`}
+                maxWidth="max-w-6xl"
             >
-              <Icon name="check" className="mr-2" /> Usar este Texto
-            </button>
-          </div>
-        }
-      >
-        <div className="bg-slate-50 p-4 rounded-lg max-h-[60vh] overflow-y-auto">
-            {generatedContentModal && <ContentRenderer text={generatedContentModal.content} />}
-        </div>
-      </Modal>
+                <HistoryViewer document={historyModalContent} allSections={historyModalContent.type === 'etp' ? etpSections : trSections} />
+            </Modal>
+        )}
+        
+        <Modal
+          isOpen={isRagPreviewModalOpen}
+          onClose={() => {
+            setIsRagPreviewModalOpen(false);
+            setViewingAttachment(null);
+          }}
+          title="Pré-visualização de Ficheiro RAG"
+          maxWidth="max-w-4xl"
+          footer={
+             <button
+                onClick={() => {
+                  setIsRagPreviewModalOpen(false);
+                  setViewingAttachment(null);
+                }}
+                className="py-2 px-4 font-bold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Fechar
+              </button>
+          }
+        >
+          {viewingAttachment && (
+            <div className="w-full h-[70vh] bg-slate-100 rounded-lg border flex items-center justify-center">
+                {isLoadingPreview ? (
+                    <div className="flex flex-col items-center gap-2 text-slate-600">
+                        <Icon name="spinner" className="fa-spin text-3xl" />
+                        <span>A carregar pré-visualização...</span>
+                    </div>
+                ) : previewContent ? (
+                    <div className="w-full h-full bg-white overflow-auto rounded-lg">
+                        {previewContent.type === 'text' ? (
+                            <pre className="text-sm whitespace-pre-wrap font-mono bg-slate-50 p-6 h-full">{previewContent.content}</pre>
+                        ) : (
+                            <div className="p-2 sm:p-8 bg-slate-100 min-h-full">
+                                <div className="prose max-w-4xl mx-auto p-8 bg-white shadow-lg" dangerouslySetInnerHTML={{ __html: previewContent.content }} />
+                            </div>
+                        )}
+                    </div>
+                ) : viewingAttachment.type.startsWith('image/') ? (
+                    <img src={getAttachmentDataUrl(viewingAttachment)} alt={viewingAttachment.name} className="max-w-full max-h-full object-contain" />
+                ) : viewingAttachment.type === 'application/pdf' ? (
+                    <object data={getAttachmentDataUrl(viewingAttachment)} type="application/pdf" width="100%" height="100%">
+                        <p className="p-4 text-center text-slate-600">O seu navegador não suporta a pré-visualização de PDFs. <a href={getAttachmentDataUrl(viewingAttachment)} download={viewingAttachment.name} className="text-blue-600 hover:underline">Clique aqui para fazer o download.</a></p>
+                    </object>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                        <Icon name="file-download" className="text-5xl text-slate-400 mb-4" />
+                        <p className="text-slate-700 text-lg mb-2">A pré-visualização não está disponível para este tipo de ficheiro.</p>
+                        <p className="text-slate-500 mb-6 text-sm">({viewingAttachment.type})</p>
+                        <a 
+                            href={getAttachmentDataUrl(viewingAttachment)} 
+                            download={viewingAttachment.name}
+                            className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Icon name="download" />
+                            Fazer Download
+                        </a>
+                    </div>
+                )}
+            </div>
+          )}
+        </Modal>
 
-    {installPrompt && !isInstallBannerVisible && (
-        <button
-            onClick={handleInstallClick}
-            className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom)+1rem+3.5rem)] right-6 md:bottom-24 md:right-8 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-700 transition-transform transform hover:scale-110 z-50"
-            title="Instalar App"
+        {generatedContentModal && (
+          <Modal
+            isOpen={!!generatedContentModal}
+            onClose={() => setGeneratedContentModal(null)}
+            title={`Conteúdo Gerado por IA para: ${generatedContentModal.title}`}
+            maxWidth="max-w-3xl"
+            footer={
+              <div className="flex justify-end gap-3">
+                 <button onClick={() => handleOpenEditModal(generatedContentModal.docType, generatedContentModal.sectionId, generatedContentModal.title)} className="px-4 py-2 font-bold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                    Editar
+                 </button>
+                 <button onClick={handleAcceptGeneratedContent} className="px-4 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                   Aceitar e Inserir
+                 </button>
+              </div>
+            }
           >
-            <Icon name="download" />
-        </button>
-    )}
-    <button
-      onClick={() => setIsNewDocModalOpen(true)}
-      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom)+1rem)] right-6 md:bottom-8 md:right-8 bg-pink-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-transform transform hover:scale-110 z-50"
-      title="Criar Novo Documento"
-    >
-      <Icon name="plus" />
-    </button>
-    {installPrompt && isInstallBannerVisible && (
-        <InstallPWA
-            onInstall={handleInstallClick}
-            onDismiss={handleDismissInstallBanner}
-        />
-    )}
+            <ContentRenderer text={generatedContentModal.content} />
+          </Modal>
+        )}
+        
+        {/* Notification Container */}
+        <div className="fixed top-6 right-6 z-[100] w-full max-w-sm space-y-4">
+            {notifications.map(n => (
+                <Notification key={n.id} notification={n} onClose={removeNotification} />
+            ))}
+        </div>
 
-    {/* Notifications Container */}
-    <div className="fixed top-5 right-5 z-[100] w-full max-w-sm">
-        {notifications.map((notification) => (
-          <Notification
-            key={notification.id}
-            notification={notification}
-            onClose={removeNotification}
-          />
-        ))}
-    </div>
-
-    {/* New Bottom Nav Bar */}
-    <BottomNavBar 
-        activeView={activeView}
-        switchView={switchView}
-        openSidebar={() => setIsSidebarOpen(true)}
-    />
+        <BottomNavBar activeView={activeView} switchView={switchView} openSidebar={() => setIsSidebarOpen(true)} />
     </div>
   );
 };
 
+// FIX: Add default export to resolve module import error in index.tsx.
 export default App;
