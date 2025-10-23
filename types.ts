@@ -95,6 +95,9 @@ export interface SavedDocument {
   history?: DocumentVersion[];
   priority?: Priority;
   riskMapData?: RiskMapData;
+  status?: 'draft' | 'reviewed';
+  linkedEtpId?: number;
+  linkedRiskMapId?: number;
 }
 
 export type DocumentType = 'etp' | 'tr' | 'risk-map';

@@ -6,10 +6,14 @@ const ai = new GoogleGenAI({ apiKey: "AIzaSyB1SGptDVNzOh888rzlNSkXCiT5P2goNo0" }
 export async function callGemini(prompt: string, useWebSearch: boolean = false, useThinkingMode: boolean = false): Promise<string> {
   try {
     
+    const systemInstruction = "Você é um especialista em licitações e contratos públicos no Brasil, com profundo conhecimento da Lei 14.133/21. Todos os textos gerados devem ser em linguagem formal, impessoal, técnica e em conformidade com as normas de redação oficial da Administração Pública brasileira.";
+
     const modelConfig: GenerateContentParameters = {
       model: useThinkingMode ? 'gemini-2.5-pro' : 'gemini-2.5-flash',
       contents: prompt,
-      config: {},
+      config: {
+        systemInstruction: systemInstruction,
+      },
     };
 
     if (useWebSearch && modelConfig.config) {

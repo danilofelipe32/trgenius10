@@ -16,6 +16,13 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
         if (yPos + options.size > pageHeight - pageMargin) {
             pdf.addPage();
             yPos = pageMargin;
+            // Add header for new page
+            pdf.setFontSize(8);
+            pdf.setTextColor(150);
+            pdf.text(doc.name, pageMargin, 30);
+            pdf.setLineWidth(0.5);
+            pdf.setDrawColor(200);
+            pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
         }
 
         pdf.setFontSize(options.size);
@@ -37,6 +44,13 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
         if (yPos + textBlockHeight > pageHeight - pageMargin) {
             pdf.addPage();
             yPos = pageMargin;
+            // Add header for new page
+            pdf.setFontSize(8);
+            pdf.setTextColor(150);
+            pdf.text(doc.name, pageMargin, 30);
+            pdf.setLineWidth(0.5);
+            pdf.setDrawColor(200);
+            pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
         }
 
         pdf.text(splitText, xPos, yPos, { align: options.align || 'left' });
@@ -112,7 +126,7 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
         });
     }
 
-    // --- Add Headers & Footers to all pages ---
+    // --- Add Headers, Footers & Watermark to all pages ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
@@ -133,6 +147,15 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
             pdf.setLineWidth(0.5);
             pdf.setDrawColor(200);
             pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
+        }
+        
+        // Watermark (R.F-03)
+        if (doc.status !== 'reviewed') {
+            pdf.setFontSize(100);
+            pdf.setTextColor(235, 235, 235); // Very light grey
+            pdf.setGState(new pdf.GState({opacity: 0.5}));
+            pdf.text('RASCUNHO', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+            pdf.setGState(new pdf.GState({opacity: 1})); // Reset opacity
         }
     }
 
@@ -265,7 +288,7 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
     }
 
 
-    // --- PDF Footer (Pagination) ---
+    // --- PDF Footer (Pagination) & Watermark ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
@@ -277,6 +300,15 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
             pageHeight - 20,
             { align: 'center' }
         );
+
+        // Watermark (R.F-03)
+        if (doc.status !== 'reviewed') {
+            pdf.setFontSize(100);
+            pdf.setTextColor(235, 235, 235); // Very light grey
+            pdf.setGState(new pdf.GState({opacity: 0.5}));
+            pdf.text('RASCUNHO', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+            pdf.setGState(new pdf.GState({opacity: 1})); // Reset opacity
+        }
     }
 
     // --- Save the PDF ---
