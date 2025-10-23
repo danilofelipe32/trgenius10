@@ -7,22 +7,20 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
     const pdf = new jsPDF('p', 'pt', 'a4');
 
     const pageMargin = 50;
+    const headerFooterMargin = 30;
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const contentWidth = pageWidth - (pageMargin * 2);
     let yPos = 0;
 
     const addText = (text: string, options: { size: number; isBold?: boolean; spacingAfter?: number; x?: number; color?: number | number[]; align?: 'left' | 'center' | 'right' }) => {
-        if (yPos + options.size > pageHeight - pageMargin) {
+        // Check for page break before adding text
+        const splitText = pdf.splitTextToSize(text, options.align === 'center' ? contentWidth : contentWidth - ((options.x || pageMargin) - pageMargin));
+        const textBlockHeight = pdf.getTextDimensions(splitText).h;
+
+        if (yPos + textBlockHeight > pageHeight - pageMargin) {
             pdf.addPage();
             yPos = pageMargin;
-            // Add header for new page
-            pdf.setFontSize(8);
-            pdf.setTextColor(150);
-            pdf.text(doc.name, pageMargin, 30);
-            pdf.setLineWidth(0.5);
-            pdf.setDrawColor(200);
-            pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
         }
 
         pdf.setFontSize(options.size);
@@ -38,21 +36,7 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
         }
 
         const xPos = options.align === 'center' ? pageWidth / 2 : (options.x || pageMargin);
-        const splitText = pdf.splitTextToSize(text, options.align === 'center' ? contentWidth : contentWidth - (xPos - pageMargin));
         
-        const textBlockHeight = pdf.getTextDimensions(splitText).h;
-        if (yPos + textBlockHeight > pageHeight - pageMargin) {
-            pdf.addPage();
-            yPos = pageMargin;
-            // Add header for new page
-            pdf.setFontSize(8);
-            pdf.setTextColor(150);
-            pdf.text(doc.name, pageMargin, 30);
-            pdf.setLineWidth(0.5);
-            pdf.setDrawColor(200);
-            pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
-        }
-
         pdf.text(splitText, xPos, yPos, { align: options.align || 'left' });
         yPos += textBlockHeight + (options.spacingAfter || 0);
     };
@@ -71,8 +55,10 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
     }
 
     // --- Content Pages ---
-    pdf.addPage();
-    yPos = pageMargin;
+    if (sections.some(s => doc.sections[s.id] && String(doc.sections[s.id]).trim()) || summary) {
+        pdf.addPage();
+        yPos = pageMargin;
+    }
 
     // Executive Summary (if available)
     if (summary) {
@@ -82,7 +68,6 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
         pdf.line(pageMargin, yPos, pageWidth - pageMargin, yPos);
         yPos += 15;
         
-        // Remove markdown for clean text
         const plainSummary = summary.replace(/(\*\*|##|#|---)/g, '');
         addText(plainSummary, { size: 11, spacingAfter: 30, color: [80, 80, 80] });
     }
@@ -99,7 +84,6 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
             
             addText(section.title, { size: 14, isBold: true, spacingAfter: 15 });
             
-            // Remove markdown for clean text
             const plainContent = String(content).replace(/(\*\*|##|#|---)/g, '');
             addText(plainContent, { size: 11, spacingAfter: 20, color: [80, 80, 80] });
         }
@@ -108,7 +92,7 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
     // Attachments
     if (doc.attachments && doc.attachments.length > 0) {
         yPos += 10;
-        if (yPos > pageHeight - pageMargin - 50) { // Check space for section
+        if (yPos > pageHeight - pageMargin - 50) { 
             pdf.addPage();
             yPos = pageMargin;
         }
@@ -130,23 +114,25 @@ export const exportDocumentToPDF = (doc: SavedDocument, sections: Section[], sum
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
+        
+        // Footer (on all pages)
         pdf.setFontSize(8);
         pdf.setTextColor(150);
-        
-        // Footer
         pdf.text(
             `Página ${i} de ${pageCount}`,
             pageWidth / 2,
-            pageHeight - 20,
+            pageHeight - headerFooterMargin,
             { align: 'center' }
         );
 
-        // Header (from page 2 onwards)
+        // Header (from page 2 onwards, as page 1 is the title page)
         if (i > 1) {
-            pdf.text(doc.name, pageMargin, 30);
+            pdf.setFontSize(8);
+            pdf.setTextColor(150);
+            pdf.text(doc.name, pageMargin, headerFooterMargin);
             pdf.setLineWidth(0.5);
             pdf.setDrawColor(200);
-            pdf.line(pageMargin, 35, pageWidth - pageMargin, 35);
+            pdf.line(pageMargin, headerFooterMargin + 5, pageWidth - pageMargin, headerFooterMargin + 5);
         }
         
         // Watermark (R.F-03)
@@ -168,6 +154,7 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
     const pdf = new jsPDF('p', 'pt', 'a4');
 
     const pageMargin = 40;
+    const headerFooterMargin = 30;
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const contentWidth = pageWidth - (pageMargin * 2);
@@ -204,12 +191,13 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
 
     // --- PDF Content ---
 
-    // 1. Header
-    addText(doc.name, { size: 18, isBold: true, spacing: 20 });
+    // Page 1 Title
+    addText(doc.name, { size: 18, isBold: true, spacing: 20, align: 'center' });
+    yPos = pageMargin + 40; // Add some space after the centered title
     
     const { riskMapData } = doc;
 
-    // 2. Revision History
+    // Revision History
     const revisionHistory = riskMapData?.revisionHistory;
     if (revisionHistory && revisionHistory.length > 0) {
         addSectionTitle('Histórico de Revisões');
@@ -223,13 +211,13 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
         });
     }
 
-    // 3. Introduction
+    // Introduction
     if (doc.sections['risk-map-intro']) {
         addSectionTitle('1. Introdução');
         addText(doc.sections['risk-map-intro'], { size: 11, spacing: 20 });
     }
 
-    // 4. Risk Identification
+    // Risk Identification
     const riskIdentification = riskMapData?.riskIdentification;
     if (riskIdentification && riskIdentification.length > 0) {
         addSectionTitle('2. Identificação e Análise dos Principais Riscos');
@@ -246,7 +234,7 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
         });
     }
 
-    // 5. Risk Evaluation
+    // Risk Evaluation
     const riskEvaluation = riskMapData?.riskEvaluation;
     if (riskEvaluation && riskEvaluation.length > 0) {
         addSectionTitle('3. Avaliação e Tratamento dos Riscos Identificados');
@@ -274,7 +262,7 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
         });
     }
 
-    // 6. Risk Monitoring
+    // Risk Monitoring
     const riskMonitoring = riskMapData?.riskMonitoring;
     if (riskMonitoring && riskMonitoring.length > 0) {
         addSectionTitle('4. Acompanhamento das Ações de Tratamento de Riscos');
@@ -287,17 +275,28 @@ export const exportRiskMapToPDF = (doc: SavedDocument) => {
         });
     }
 
-
-    // --- PDF Footer (Pagination) & Watermark ---
+    // --- PDF Headers, Footers & Watermark ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
+
+        // Header (from page 2 onwards, as page 1 has the main title)
+        if (i > 1) {
+            pdf.setFontSize(8);
+            pdf.setTextColor(150);
+            pdf.text(doc.name, pageMargin, headerFooterMargin);
+            pdf.setLineWidth(0.5);
+            pdf.setDrawColor(200);
+            pdf.line(pageMargin, headerFooterMargin + 5, pageWidth - pageMargin, headerFooterMargin + 5);
+        }
+
+        // Footer (on all pages)
         pdf.setFontSize(8);
         pdf.setTextColor(150);
         pdf.text(
             `Página ${i} de ${pageCount}`,
             pageWidth / 2,
-            pageHeight - 20,
+            pageHeight - headerFooterMargin,
             { align: 'center' }
         );
 
