@@ -87,6 +87,7 @@ export interface DocumentVersion {
 
 export interface SavedDocument {
   id: number;
+  type: DocumentType;
   name: string;
   createdAt: string;
   updatedAt: string;

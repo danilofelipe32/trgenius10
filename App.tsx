@@ -145,7 +145,7 @@ const ContentRenderer: React.FC<{ text: string | null; className?: string }> = (
             if (listType === 'ul') {
                 elements.push(<ul key={listKey} className="space-y-1 my-3 list-disc list-inside pl-2 text-slate-700">{items}</ul>);
             } else {
-                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ol>);
+                elements.push(<ol key={listKey} className="space-y-1 my-3 list-decimal list-inside pl-2 text-slate-700">{items}</ul>);
             }
         }
         listItems = [];
@@ -1163,7 +1163,7 @@ ${content}
     
     if (docType === 'etp') {
       const newDoc: SavedDocument = {
-        id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...sections },
+        id: Date.now(), type: 'etp', name, createdAt: now, updatedAt: now, sections: { ...sections },
         attachments: etpAttachments, history: [], priority: currentEtpPriority, status: 'draft',
       };
       const updatedETPs = [...savedETPs, newDoc];
@@ -1172,7 +1172,7 @@ ${content}
       addNotification("success", "Sucesso", `ETP "${name}" guardado com sucesso!`);
     } else if (docType === 'tr') {
       const newDoc: SavedDocument = {
-        id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...sections },
+        id: Date.now(), type: 'tr', name, createdAt: now, updatedAt: now, sections: { ...sections },
         attachments: trAttachments, history: [], priority: currentTrPriority, status: 'draft',
       };
       const updatedTRs = [...savedTRs, newDoc];
@@ -1181,7 +1181,7 @@ ${content}
       addNotification("success", "Sucesso", `TR "${name}" guardado com sucesso!`);
     } else if (docType === 'risk-map') {
         const newDoc: SavedDocument = {
-            id: Date.now(), name, createdAt: now, updatedAt: now, sections: { ...riskMapSectionsContent },
+            id: Date.now(), type: 'risk-map', name, createdAt: now, updatedAt: now, sections: { ...riskMapSectionsContent },
             priority: currentRiskMapPriority, history: [], status: 'draft',
             riskMapData: { revisionHistory, riskIdentification, riskEvaluation, riskMonitoring }
         };
@@ -1637,6 +1637,7 @@ Solicitação do usuário: "${refinePrompt}"
     
     const docToExport: SavedDocument = {
         id: Date.now(),
+        type: 'risk-map',
         name: `Mapa de Riscos ${new Date().toLocaleDateString('pt-BR')}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -3179,7 +3180,11 @@ Solicitação do usuário: "${refinePrompt}"
                 title={`Histórico de Versões: ${historyModalContent.name}`}
                 maxWidth="max-w-6xl"
             >
-                <HistoryViewer document={historyModalContent} allSections={historyModalContent.type === 'etp' ? etpSections : trSections} />
+                <HistoryViewer document={historyModalContent} allSections={
+                    historyModalContent.type === 'etp' ? etpSections :
+                    historyModalContent.type === 'tr' ? trSections :
+                    riskMapSections
+                } />
             </Modal>
         )}
         

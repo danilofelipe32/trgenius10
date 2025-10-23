@@ -6,6 +6,9 @@ const pwaIcon = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' vi
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    'process.env': process.env
+  },
   plugins: [
     react(),
     VitePWA({

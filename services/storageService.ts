@@ -1,4 +1,4 @@
-import { SavedDocument, UploadedFile, DocumentVersion } from '../types';
+import { SavedDocument, UploadedFile, DocumentVersion, DocumentType } from '../types';
 
 const ETP_STORAGE_KEY = 'savedETPs';
 const TR_STORAGE_KEY = 'savedTRs';
@@ -8,7 +8,19 @@ const FILES_STORAGE_KEY = 'trGeniusFiles';
 // Document Management (ETP & TR)
 const getSavedDocuments = (key: string): SavedDocument[] => {
   const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
+  const docs = data ? JSON.parse(data) : [];
+  
+  let docType: DocumentType;
+  if (key === ETP_STORAGE_KEY) {
+    docType = 'etp';
+  } else if (key === TR_STORAGE_KEY) {
+    docType = 'tr';
+  } else { // RISKMAP_STORAGE_KEY
+    docType = 'risk-map';
+  }
+
+  // Add type to each document to ensure it exists for both old and new data structures.
+  return docs.map((doc: any) => ({ ...doc, type: docType }));
 };
 
 const saveDocuments = (key: string, docs: SavedDocument[]): void => {
